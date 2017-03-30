@@ -1,6 +1,7 @@
 #include "det.h"
 
 #include <cstddef>
+#include <boost/functional/hash.hpp>
 #include "spin_det.h"
 
 namespace hci {
@@ -26,7 +27,9 @@ void Det::resize(const int n_orb) {
 }
 
 std::size_t hash_value(const Det& det) {
-  return hash_value(det.up) ^ hash_value(det.dn);
+  std::size_t seed = hash_value(det.up);
+  boost::hash_combine(seed, hash_value(det.dn));
+  return seed;
 }
 
 }
