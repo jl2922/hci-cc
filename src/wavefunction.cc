@@ -23,8 +23,8 @@ void Wavefunction::load(std::string filename) {
   std::ifstream wf_file(filename.c_str());
   wf_file >> n >> n_up >> n_dn;
   this->n = n;
-  this->coefs = new double[n];
-  this->dets = new Det[n]();
+  this->coefs.resize(n);
+  this->dets.resize(n);
 
   // Read each coef and det.
   for (int i = 0; i < n; i++) {
@@ -45,11 +45,11 @@ void Wavefunction::load(std::string filename) {
   printf("Loaded wavefunction with %d dets.\n", n);
 }
 
-hci::Det& Wavefunction::get_det(int idx) {
+const hci::Det& Wavefunction::get_det(int idx) const {
   return this->dets[idx];
 }
 
-double Wavefunction::get_coef(int idx) {
+double Wavefunction::get_coef(int idx) const {
   return this->coefs[idx];
 }
 

@@ -9,19 +9,23 @@ $(error Boost folder $(BOOST_DIR) not found.)
 endif
 
 CC := g++
-CFLAGS := -std=c++11 -O3 -Wall -I $(BOOST_DIR)
+CFLAGS := -std=c++11 -O3 -I $(BOOST_DIR)
 SRC_DIR := src
 OBJ_DIR := build
-SRCS := $(shell find $(SRC_DIR)/ -name "*.cc")
+SRCS := $(shell find $(SRC_DIR)/ ! -name "main.cc" -name "*.cc")
 OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
+MAIN := src/main.cc
+EXE := hci
 
 .PHONY: all clean
 
-all: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o hci
+all: $(EXE)
 
 clean:
 	rm -f $(OBJ_DIR)/*
 
-$(OBJS): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc
+$(EXE): $(OBJS) $(MAIN)
+	$(CC) $(CFLAGS) $(MAIN) $(OBJS) -o hci
+	
+$(OBJS): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc $(SRC_DIR)/%.h
 	$(CC) $(CFLAGS) -c $< -o $@

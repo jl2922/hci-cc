@@ -10,12 +10,13 @@ class Wavefunction {
   public:
     Wavefunction();
     void load(std::string);
-    hci::Det& get_det(int);
-    double get_coef(int);
-    int n;
+    const hci::Det& get_det(int) const;
+    double get_coef(int) const;
+
+    int n; // Number of dets.
   private:
-    double coefs[];
-    hci::Det dets[];
+    std::vector<double> coefs;
+    std::vector<hci::Det> dets;
 };
 
 }
