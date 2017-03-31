@@ -14,8 +14,8 @@ class Wavefunction {
     double get_coef(int);
     int n;
   private:
-    double* coefs;
-    hci::Det* dets;
+    double coefs[];
+    hci::Det dets[];
 };
 
 }

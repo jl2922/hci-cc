@@ -1,5 +1,6 @@
 #include "solver.h"
 
+#include <cstdio>
 #include <unordered_map>
 #include <boost/functional/hash.hpp>
 #include "det.h"
@@ -28,6 +29,7 @@ void Solver::pt_det(const double eps_pt) {
     const auto& connected_dets =
         this->find_connected_dets(det_i, eps_pt / abs(coef_i));
   }
+  printf("%.10f", this->get_hamiltonian_elem(this->wf.get_det(1), this->wf.get_det(1)));
 }
   
 }

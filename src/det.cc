@@ -21,6 +21,11 @@ Det& Det::operator=(const Det& det) {
   return *this;
 }
 
+void Det::from_eor(const Det& det_a, const Det& det_b) {
+  this->up.from_eor(det_a.up, det_b.up);
+  this->dn.from_eor(det_a.dn, det_b.dn);
+}
+
 void Det::resize(const int n_orb) {
   this->up.resize(n_orb);
   this->dn.resize(n_orb);

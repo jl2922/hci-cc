@@ -9,7 +9,7 @@ $(error Boost folder $(BOOST_DIR) not found.)
 endif
 
 CC := g++
-CFLAGS := -std=c++11 -O3 -I $(BOOST_DIR)
+CFLAGS := -std=c++11 -O3 -Wall -I $(BOOST_DIR)
 SRC_DIR := src
 OBJ_DIR := build
 SRCS := $(shell find $(SRC_DIR)/ -name "*.cc")
@@ -25,5 +25,3 @@ clean:
 
 $(OBJS): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc
 	$(CC) $(CFLAGS) -c $< -o $@
-
-build/heg_solver.o: build/solver.o

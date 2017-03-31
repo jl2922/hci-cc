@@ -11,6 +11,7 @@ class Det {
     Det() { };
     Det(const Det&);
     Det& operator=(const Det&);
+    void from_eor(const Det&, const Det&);
     void resize(const int);
     hci::SpinDet up;
     hci::SpinDet dn;

@@ -24,12 +24,35 @@ SpinDet& SpinDet::operator=(const SpinDet& spin_det) {
   return *this;
 }
 
+void SpinDet::from_eor(const SpinDet& a, const SpinDet& b) {
+  this->orbs = a.orbs ^ b.orbs;
+}
+
+int SpinDet::get_n_elec() const {
+  return this->orbs.count();
+}
+
+int* SpinDet::get_elec_orbs(int n_elec) const {
+  if (n_elec < 0) n_elec = this->get_n_elec();
+  int* orbs = new int[n_elec];
+  int pos = -1;
+  for (int i = 0; i < n_elec; i++) {
+    pos = this->orbs.find_next(pos);
+    orbs[i] = pos;
+  }
+  return orbs;
+}
+
 void SpinDet::resize(const int n_orb) {
   this->orbs.resize(n_orb);
 }
 
 void SpinDet::set_orb(const int orb, const bool occ) {
   this->orbs.set(orb, occ);
+}
+
+bool SpinDet::get_orb(const int orb) const {
+  return this->orbs.test(orb);
 }
 
 void SpinDet::print() {
