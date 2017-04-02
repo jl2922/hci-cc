@@ -40,6 +40,7 @@ class HEGSolver: public Solver {
     int find_orb_id(const std::array<int, 3>&);
     int get_gamma_exp(
         const SpinDet&,
+        const int n_elecs,
         const std::vector<int>&) const;
     void generate_k_vectors();
     void generate_hci_queue();

@@ -74,7 +74,7 @@ std::size_t hash_value(const SpinDet& spin_det) {
   std::size_t seed = 0;
   std::size_t pos = spin_det.orbs.find_first(); 
   while (pos != boost::dynamic_bitset<>::npos) {
-    boost::hash_combine(seed, spin_det.orbs.find_next(pos));
+    boost::hash_combine(seed, pos);
     pos = spin_det.orbs.find_next(pos);
   }
   return seed;

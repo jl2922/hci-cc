@@ -34,10 +34,11 @@ double HEGSolver::get_abs_hamiltonian_by_pqrs(
 // Number of bits set before each changed bit.
 int HEGSolver::get_gamma_exp(
     const SpinDet& spin_det,
+    const int n_elecs,
     const std::vector<int>& eor) const {
   int gamma_exp = 0;
   int ptr = 0;
-  const auto& occ = spin_det.get_elec_orbs();
+  const auto& occ = spin_det.get_elec_orbs(n_elecs);
   for (const int& orb_id: eor) {
     if (!spin_det.get_orb(orb_id)) continue;
     while (occ[ptr] < orb_id) ptr++;
@@ -93,8 +94,8 @@ double HEGSolver::get_hamiltonian_elem(
     const int n_eor_up = det_eor.up.get_n_elecs();
     const int n_eor_dn = det_eor.dn.get_n_elecs();
     if (n_eor_up + n_eor_dn != 4) return 0.0;
-    const auto& eor_up_set_bits = det_eor.up.get_elec_orbs();
-    const auto& eor_dn_set_bits = det_eor.dn.get_elec_orbs();
+    const auto& eor_up_set_bits = det_eor.up.get_elec_orbs(n_eor_up);
+    const auto& eor_dn_set_bits = det_eor.dn.get_elec_orbs(n_eor_dn);
     bool k_p_set = false, k_q_set = false;
     int orb_p = 0, orb_q = 0, orb_s = 0;
 
@@ -144,10 +145,10 @@ double HEGSolver::get_hamiltonian_elem(
       H -= one_over_pi_l / sum(square(k_vectors[orb_p] - k_vectors[orb_s]));
     }
     int gamma_exp = 
-        get_gamma_exp(det_pq.up, eor_up_set_bits) +
-        get_gamma_exp(det_pq.dn, eor_dn_set_bits) +
-        get_gamma_exp(det_rs.up, eor_up_set_bits) +
-        get_gamma_exp(det_rs.dn, eor_dn_set_bits);
+        get_gamma_exp(det_pq.up, n_up, eor_up_set_bits) +
+        get_gamma_exp(det_pq.dn, n_dn, eor_dn_set_bits) +
+        get_gamma_exp(det_rs.up, n_up, eor_up_set_bits) +
+        get_gamma_exp(det_rs.dn, n_dn, eor_dn_set_bits);
     if ((gamma_exp & 1) == 1) H = -H;
   }
   return H;

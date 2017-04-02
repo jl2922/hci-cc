@@ -4,6 +4,7 @@
 .settings/
 *.dSYM/
 Makefile.config
+hci
 
 # Compiled Object files
 *.slo
