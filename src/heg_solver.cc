@@ -252,10 +252,9 @@ Wavefunction HEGSolver::find_connected_dets(
 
       // Test whether pqrs is a valid excitation for det.
       if (det.get_orb(r) || det.get_orb(s)) continue;
-
-      Det new_det(det);
+      connected_dets.append_det(det);
+      Det& new_det = connected_dets.get_det(connected_dets.n - 1);
       new_det.set_orb(p, false).set_orb(q, false).set_orb(r).set_orb(s);
-      connected_dets.append_det(new_det);
     }
   }
   return connected_dets;

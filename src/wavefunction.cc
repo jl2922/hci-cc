@@ -52,6 +52,10 @@ const hci::Det& Wavefunction::get_det(const int idx) const {
   return dets[idx];
 }
 
+hci::Det& Wavefunction::get_det(const int idx) {
+  return dets[idx];
+}
+
 void Wavefunction::set_det(const int idx, const Det& det) {
   dets[idx] = det;
 }
