@@ -2,61 +2,72 @@
 
 #include <cstddef>
 #include <iostream>
+#include <vector>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/functional/hash.hpp>
 
 namespace hci {
 
-SpinDet::SpinDet(const int n_orb) {
-  this->resize(n_orb);
+SpinDet::SpinDet(const int n_orbs) {
+  resize(n_orbs); // Fill with zeroes.
 }
 
 SpinDet::SpinDet(const SpinDet& spin_det) {
-  this->orbs = spin_det.orbs;
+  orbs = spin_det.orbs;
 }
 
-bool operator==(const SpinDet& spin_det1, const SpinDet& spin_det2) {
-  return spin_det1.orbs == spin_det2.orbs;
+bool operator==(const SpinDet& lhs, const SpinDet& rhs) {
+  return lhs.orbs == rhs.orbs;
 }
 
-SpinDet& SpinDet::operator=(const SpinDet& spin_det) {
-  this->orbs = spin_det.orbs;
+SpinDet& SpinDet::operator=(const SpinDet& rhs) {
+  orbs = rhs.orbs;
   return *this;
 }
 
-void SpinDet::from_eor(const SpinDet& a, const SpinDet& b) {
-  this->orbs = a.orbs ^ b.orbs;
+//std::ostream& operator<<(std::ostream& os, const SpinDet& spin_det) {
+//  os << spin_det.orbs << std::endl;
+//  return os;
+//}
+
+void SpinDet::from_eor(const SpinDet& lhs, const SpinDet& rhs) {
+  orbs = lhs.orbs ^ rhs.orbs;
 }
 
-int SpinDet::get_n_elec() const {
-  return this->orbs.count();
+int SpinDet::get_n_elecs() const {
+  return orbs.count();
 }
 
-int* SpinDet::get_elec_orbs(int n_elec) const {
-  if (n_elec < 0) n_elec = this->get_n_elec();
-  int* orbs = new int[n_elec];
-  int pos = -1;
-  for (int i = 0; i < n_elec; i++) {
-    pos = this->orbs.find_next(pos);
-    orbs[i] = pos;
+std::vector<int> SpinDet::get_elec_orbs(const int n_elecs) const {
+  std::vector<int> elec_orbs;
+  if (n_elecs > 0) elec_orbs.reserve(n_elecs);
+  int pos = orbs.find_first();
+  while(pos != boost::dynamic_bitset<>::npos) {
+    elec_orbs.push_back(pos);
+    pos = orbs.find_next(pos);
   }
-  return orbs;
+  return elec_orbs;
 }
 
-void SpinDet::resize(const int n_orb) {
-  this->orbs.resize(n_orb);
+int SpinDet::get_n_orbs() const {
+  return orbs.size();
 }
 
-void SpinDet::set_orb(const int orb, const bool occ) {
-  this->orbs.set(orb, occ);
+void SpinDet::resize(const int n_orbs) {
+  orbs.resize(n_orbs);
+}
+
+SpinDet& SpinDet::set_orb(const int orb, const bool occ) {
+  orbs.set(orb, occ);
+  return *this;
 }
 
 bool SpinDet::get_orb(const int orb) const {
-  return this->orbs.test(orb);
+  return orbs.test(orb);
 }
 
 void SpinDet::print() {
-  std::cout << this->orbs << std::endl;
+  std::cout << orbs << std::endl;
 }
 
 std::size_t hash_value(const SpinDet& spin_det) {

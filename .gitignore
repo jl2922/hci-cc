@@ -1,4 +1,8 @@
+.cproject
 .vscode
+.project
+.settings/
+*.dSYM/
 Makefile.config
 
 # Compiled Object files
@@ -30,3 +34,4 @@ Makefile.config
 *.exe
 *.out
 *.app
+/Default/

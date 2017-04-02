@@ -5,17 +5,22 @@ endif
 include $(CONFIG_FILE)
 
 ifeq ($(wildcard $(BOOST_DIR)),)
-$(error Boost folder $(BOOST_DIR) not found.)
+$(error Boost $(BOOST_DIR) not found.)
 endif
 
 CC := g++
-CFLAGS := -std=c++11 -O3 -I $(BOOST_DIR)
+CFLAGS := -std=c++11 -g -O3 -I $(BOOST_DIR)
 SRC_DIR := src
 OBJ_DIR := build
-SRCS := $(shell find $(SRC_DIR)/ ! -name "main.cc" -name "*.cc")
+SRCS := $(shell find $(SRC_DIR) ! -name "main.cc" -name "*.cc")
+HEADERS := $(shell find $(SRC_DIR) -name "*.h")
 OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
 MAIN := src/main.cc
 EXE := hci
+
+ifeq ($(wildcard $(OBJ_DIR)),)
+$(shell mkdir $(OBJ_DIR))
+endif
 
 .PHONY: all clean
 
@@ -27,5 +32,5 @@ clean:
 $(EXE): $(OBJS) $(MAIN)
 	$(CC) $(CFLAGS) $(MAIN) $(OBJS) -o hci
 	
-$(OBJS): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc $(SRC_DIR)/%.h
+$(OBJS): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
