@@ -1,6 +1,7 @@
 #ifndef HCI_WAVEFUNCTION_H_
 #define HCI_WAVEFUNCTION_H_
 
+#include <list>
 #include <string>
 #include "det.h"
 
@@ -10,17 +11,15 @@ class Wavefunction {
   public:
     Wavefunction();
     void load(const std::string&, const int);
-    void append_det(const Det&, const double coef = 0.0);
-    const hci::Det& get_det(const int) const;
-    hci::Det& get_det(const int);
-    void set_det(const int, const Det&);
-    double get_coef(const int) const;
-    void set_coef(const int, const double);
+    Det& append_det(const Det&, const double coef = 0.0);
+    const std::list<Det>& get_dets() const;
+    const std::list<double>& get_coefs() const;
+    void freeze();
 
     int n; // Number of dets.
   private:
-    std::vector<double> coefs;
-    std::vector<hci::Det> dets;
+    std::list<double> coefs;
+    std::list<hci::Det> dets;
 };
 
 }

@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <string>
+#include <vector>
 #include "det.h"
 
 namespace hci {
@@ -12,29 +14,28 @@ Wavefunction::Wavefunction() {
   n = 0;
 }
 
-void Wavefunction::append_det(const Det& det, const double coef) {
+Det& Wavefunction::append_det(const Det& det, const double coef) {
   dets.push_back(det);
   coefs.push_back(coef);
   n++;
+  return dets.back();
 }
 
 void Wavefunction::load(const std::string& filename, const int n_orbs) {
+  int n_in;
   int n_up, n_dn;
   double coef;
+  const Det det_proto(n_orbs);
   int orb;
   
   // Read header line.
   std::ifstream wf_file(filename.c_str());
-  wf_file >> n >> n_up >> n_dn;
-  coefs.resize(n);
-  dets.resize(n);
+  wf_file >> n_in >> n_up >> n_dn;
 
   // Read each coef and det.
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n_in; i++) {
     wf_file >> coef;
-    coefs[i] = coef;
-    Det& det = dets[i];
-    det.resize(n_orbs);
+    Det& det = append_det(det_proto, coef);
     for (int j = 0; j < n_up; j++) {
       wf_file >> orb;
       det.up.set_orb(orb - 1, true);
@@ -48,24 +49,12 @@ void Wavefunction::load(const std::string& filename, const int n_orbs) {
   printf("Loaded wavefunction with %d dets.\n", n);
 }
 
-const hci::Det& Wavefunction::get_det(const int idx) const {
-  return dets[idx];
+const std::list<hci::Det>& Wavefunction::get_dets() const {
+  return dets;
 }
 
-hci::Det& Wavefunction::get_det(const int idx) {
-  return dets[idx];
-}
-
-void Wavefunction::set_det(const int idx, const Det& det) {
-  dets[idx] = det;
-}
-
-double Wavefunction::get_coef(const int idx) const {
-  return coefs[idx];
-}
-
-void Wavefunction::set_coef(const int idx, const double coef) {
-  coefs[idx] = coef;
+const std::list<double>& Wavefunction::get_coefs() const {
+  return coefs;
 }
 
 }

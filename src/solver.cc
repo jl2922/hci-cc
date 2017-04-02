@@ -22,27 +22,29 @@ void Solver::solve() {
 
 // Deterministic 2nd-order purterbation.
 void Solver::pt_det(const double eps_pt) {
-  std::unordered_set<hci::Det, boost::hash<hci::Det>> var_dets;
+  std::unordered_set<hci::Det, boost::hash<hci::Det>> var_dets_set;
   std::list<hci::Det> pt_dets;
   std::unordered_map<hci::Det, double, boost::hash<hci::Det>> pt_sums;
   const int n = wf.n;
 
   // Save variational dets.
-  for (int i = 0; i < n; i++) {
-    const auto& det_i = wf.get_det(i);
-    var_dets.insert(det_i);
+  const auto& var_dets = wf.get_dets();
+  for (const auto& det: var_dets) {
+    var_dets_set.insert(det);
   }
 
   // Calculate sums for each connected det_a.
+  const auto& var_coefs = wf.get_coefs();
+  auto it_det = var_dets.begin();
+  auto it_coef = var_coefs.begin();
   for (int i = 0; i < n; i++) {
-    const auto& det_i = wf.get_det(i);
-    const double coef_i = wf.get_coef(i);
+    const auto& det_i = *it_det++;
+    const double coef_i = *it_coef++;
     const auto& connected_dets =
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
     // exit(0);
-    for (int a = 0; a < connected_dets.n; a++) {
-      const auto& det_a = connected_dets.get_det(a);
-      if (var_dets.count(det_a) == 1) continue;
+    for (const auto& det_a: connected_dets.get_dets()) {
+      if (var_dets_set.count(det_a) == 1) continue;
       const double H_ai = get_hamiltonian_elem(det_i, det_a);
       if (fabs(H_ai) < Constants::EPSILON) continue;
       const double term = H_ai * coef_i;
