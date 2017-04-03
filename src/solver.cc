@@ -64,20 +64,20 @@ void Solver::pt_det(const double eps_pt) {
   const int n = wf.size();
   int hash_buckets = 0;
   const auto& var_coefs = wf.get_coefs();
-  auto it_det = --var_dets.end();
-  auto it_coef = --var_coefs.end();
+  auto it_det = var_dets.begin();
+  auto it_coef = var_coefs.begin();
+  const int sample_interval = 100;
   for (int i = 0; i < n; i++) {
     const auto& det_i = *it_det++;
     const double coef_i = *it_coef++;
-    if ((i % 100) != 0) continue;
+    if ((i % sample_interval) != 0) continue;
     const auto& connected_dets =
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
     hash_buckets += connected_dets.size();
   }
-  hash_buckets *= 120;
+  hash_buckets *= sample_interval * 2;
   
   // Accumulate pt_sum for each det_a.
-  std::list<hci::Det> pt_dets;
   std::unordered_map<hci::Det, double, boost::hash<hci::Det>> pt_sums;
   pt_sums.reserve(hash_buckets);
   it_det = var_dets.begin();
@@ -96,22 +96,22 @@ void Solver::pt_det(const double eps_pt) {
       if (pt_sums.count(det_a) == 1) {
         pt_sums[det_a] += term;
       } else {
-        pt_dets.push_back(det_a);
         pt_sums[det_a] = term;
       }
     }
     if ((i + 1) * 100 >= n * progress) {
-      printf("Progress: %d%% (%d/%d)\n", progress, i, n);
+      printf("Progress: %d%% (%d/%d) PT dets: %lu, hash load: %.2f\n",
+          progress, i, n, pt_sums.size(), pt_sums.load_factor());
       progress += 10;
     }
   }
-  printf("Number of PT dets: %d\n", static_cast<int>(pt_dets.size()));
+  printf("Number of PT dets: %lu\n", pt_sums.size());
 
   // Accumulate contribution from each det_a to the pt_energy.
   pt_energy = 0.0;
-  for (auto it = pt_dets.begin(); it != pt_dets.end(); it++) {
-    const auto& det_a = *it;
-    const double sum_a = pt_sums[det_a];
+  for (auto it = pt_sums.begin(); it != pt_sums.end(); it++) {
+    const auto& det_a = it->first;
+    const double sum_a = it->second;
     const double H_aa = get_hamiltonian_elem(det_a, det_a, n_up, n_dn);
     pt_energy += pow(sum_a, 2) / (var_energy - H_aa);
   }
