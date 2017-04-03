@@ -91,7 +91,7 @@ double HEGSolver::get_hamiltonian_elem(
     }
   } else {
     // Off-diagonal elements.
-    Det det_eor;
+    static Det det_eor;
     det_eor.from_eor(det_pq, det_rs);
     const int n_eor_up = det_eor.up.get_n_elecs();
     const int n_eor_dn = det_eor.dn.get_n_elecs();
