@@ -18,7 +18,7 @@ namespace hci {
 void Solver::load_wavefunction(const std::string& filename) {
   int n_in;
   double coef;
-  const Det det_proto(n_orbs);
+  const Det zero_det(n_orbs);
   int orb;
   
   // Read header line.
@@ -28,7 +28,7 @@ void Solver::load_wavefunction(const std::string& filename) {
   // Read each coef and det.
   for (int i = 0; i < n_in; i++) {
     wf_file >> coef;
-    Det& det = wf.append_det(det_proto, coef);
+    Det& det = wf.append_det(zero_det, coef);
     for (int j = 0; j < n_up; j++) {
       wf_file >> orb;
       det.up.set_orb(orb - 1, true);
@@ -54,11 +54,12 @@ void Solver::solve() {
 // Deterministic 2nd-order purterbation.
 void Solver::pt_det(const double eps_pt) {
   // Save variational dets into hash set.
-  std::unordered_set<hci::Det, boost::hash<hci::Det>> var_dets_set;
+  std::unordered_set<Det, boost::hash<Det>> var_dets_set;
   const auto& var_dets = wf.get_dets();
   for (const auto& det: var_dets) {
     var_dets_set.insert(det);
   }
+  var_dets_set.rehash(var_dets_set.size() * 10);
 
   // Estimate connections per det.
   const int n = wf.size();
@@ -78,7 +79,7 @@ void Solver::pt_det(const double eps_pt) {
   hash_buckets *= sample_interval * 2;
   
   // Accumulate pt_sum for each det_a.
-  std::unordered_map<hci::Det, double, boost::hash<hci::Det>> pt_sums;
+  std::unordered_map<Det, double, boost::hash<Det>> pt_sums;
   pt_sums.reserve(hash_buckets);
   it_det = var_dets.begin();
   it_coef = var_coefs.begin();
@@ -88,7 +89,7 @@ void Solver::pt_det(const double eps_pt) {
     const double coef_i = *it_coef++;
     const auto& connected_dets =
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
-    for (const auto& det_a: connected_dets.get_dets()) {
+    for (const auto& det_a: connected_dets) {
       if (var_dets_set.count(det_a) == 1) continue;
       const double H_ai = get_hamiltonian_elem(det_i, det_a, n_up, n_dn);
       if (fabs(H_ai) < Constants::EPSILON) continue;

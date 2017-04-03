@@ -183,10 +183,10 @@ void HEGSolver::setup() {
 
 // Find determinants connected to a det passed in.
 // Return as a Wavefunction object with coefs all equal zeroes.
-Wavefunction HEGSolver::find_connected_dets(
+std::list<Det> HEGSolver::find_connected_dets(
     const Det& det, const double eps) {
-  Wavefunction connected_dets;
-  connected_dets.append_det(det);
+  std::list<Det> connected_dets;
+  connected_dets.push_back(det);
   if (max_abs_H < eps) return connected_dets;
   const auto& k_vectors = heg.k_vectors;
 
@@ -256,7 +256,8 @@ Wavefunction HEGSolver::find_connected_dets(
 
       // Test whether pqrs is a valid excitation for det.
       if (det.get_orb(r, n_orbs) || det.get_orb(s, n_orbs)) continue;
-      Det& new_det = connected_dets.append_det(det);
+      connected_dets.push_back(det);
+      Det& new_det = connected_dets.back();
       new_det.set_orb(p, n_orbs, false).set_orb(q, n_orbs, false);
       new_det.set_orb(r, n_orbs).set_orb(s, n_orbs);
     }

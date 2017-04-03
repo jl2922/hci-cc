@@ -21,7 +21,7 @@ Det& Wavefunction::append_det(const Det& det, const double coef) {
   return dets.back();
 }
 
-const std::list<hci::Det>& Wavefunction::get_dets() const {
+const std::list<Det>& Wavefunction::get_dets() const {
   return dets;
 }
 

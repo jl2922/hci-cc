@@ -2,6 +2,7 @@
 #define HCI_HEG_SOLVER_H_
 
 #include <array>
+#include <list>
 #include <valarray>
 #include <vector>
 #include <unordered_map>
@@ -31,7 +32,7 @@ struct HEGData {
 class HEGSolver: public Solver {
   public:
   protected:
-    Wavefunction find_connected_dets(const Det&, const double);
+    std::list<Det> find_connected_dets(const Det&, const double);
     double get_hamiltonian_elem(
         const Det&, const Det&,
         const int n_up = -1, const int n_dn = -1) const;

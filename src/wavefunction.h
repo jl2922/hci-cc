@@ -15,7 +15,7 @@ class Wavefunction {
     int size() const;
   private:
     std::list<double> coefs;
-    std::list<hci::Det> dets;
+    std::list<Det> dets;
     int n; // Number of dets.
 };
 
