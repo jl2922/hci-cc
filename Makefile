@@ -9,7 +9,7 @@ $(error Boost $(BOOST_DIR) not found.)
 endif
 
 CC := g++
-CFLAGS := -std=c++11 -g -O3 -I $(BOOST_DIR)
+CFLAGS := -std=c++11 -g -Wall -O3 -I $(BOOST_DIR)
 SRC_DIR := src
 OBJ_DIR := build
 SRCS := $(shell find $(SRC_DIR) ! -name "main.cc" -name "*.cc")

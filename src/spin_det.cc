@@ -26,11 +26,6 @@ SpinDet& SpinDet::operator=(const SpinDet& rhs) {
   return *this;
 }
 
-//std::ostream& operator<<(std::ostream& os, const SpinDet& spin_det) {
-//  os << spin_det.orbs << std::endl;
-//  return os;
-//}
-
 void SpinDet::from_eor(const SpinDet& lhs, const SpinDet& rhs) {
   orbs = lhs.orbs ^ rhs.orbs;
 }
@@ -42,9 +37,9 @@ int SpinDet::get_n_elecs() const {
 std::vector<int> SpinDet::get_elec_orbs(int n_elecs) const {
   std::vector<int> elec_orbs;
   if (n_elecs > 0) elec_orbs.reserve(n_elecs);
-  int pos = orbs.find_first();
+  std::size_t pos = orbs.find_first();
   while(pos != boost::dynamic_bitset<>::npos) {
-    elec_orbs.push_back(pos);
+    elec_orbs.push_back(static_cast<int>(pos));
     pos = orbs.find_next(pos);
   }
   return elec_orbs;
@@ -65,10 +60,6 @@ SpinDet& SpinDet::set_orb(const int orb, const bool occ) {
 
 bool SpinDet::get_orb(const int orb) const {
   return orbs.test(orb);
-}
-
-void SpinDet::print() {
-  std::cout << orbs << std::endl;
 }
 
 std::size_t hash_value(const SpinDet& spin_det) {

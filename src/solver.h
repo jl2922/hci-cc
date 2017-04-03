@@ -1,6 +1,7 @@
 #ifndef HCI_SOLVER_H_
 #define HCI_SOLVER_H_
 
+#include <string>
 #include "det.h"
 #include "wavefunction.h"
 
@@ -13,8 +14,8 @@ class Solver {
     virtual Wavefunction find_connected_dets(const Det&, const double) = 0;
     virtual double get_hamiltonian_elem(
         const Det&, const Det&,
-        const int n_pq_up = -1, const int n_pq_dn = -1,
-        const int n_rs_up = -1, const int n_rs_dn = -1) const = 0;
+        const int n_up = -1, const int n_dn = -1) const = 0;
+    void load_wavefunction(const std::string&);
     void pt_det(const double);
     virtual void setup() = 0;
 

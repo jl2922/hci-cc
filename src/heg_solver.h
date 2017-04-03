@@ -25,7 +25,6 @@ struct HEGData {
   std::unordered_map<Int3, std::vector<Int3Double>, boost::hash<Int3>> same_spin_queue;
   std::vector<Int3Double> opposite_spin_queue;
   int n_diff;
-  int n_diff_offset;
   int n_max;
 };
 
@@ -35,8 +34,7 @@ class HEGSolver: public Solver {
     Wavefunction find_connected_dets(const Det&, const double);
     double get_hamiltonian_elem(
         const Det&, const Det&,
-        const int n_pq_up = -1, const int n_pq_dn = -1,
-        const int n_rs_up = -1, const int n_rs_dn = -1) const;
+        const int n_up = -1, const int n_dn = -1) const;
     void setup();
     HEGData heg;
   private:

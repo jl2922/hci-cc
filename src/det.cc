@@ -26,18 +26,12 @@ Det& Det::operator=(const Det& det) {
   return *this;
 }
 
-//std::ostream& operator<<(std::ostream& os, const Det& det) {
-//  os << det.up << det.dn;
-//  return os;
-//}
-
 void Det::from_eor(const Det& lhs, const Det& rhs) {
   up.from_eor(lhs.up, rhs.up);
   dn.from_eor(lhs.dn, rhs.dn);
 }
 
-bool Det::get_orb(const int orb) const {
-  const int n_orbs = up.get_n_orbs();
+bool Det::get_orb(const int orb, const int n_orbs) const {
   if (orb < n_orbs) {
     return up.get_orb(orb);
   } else {
@@ -45,8 +39,7 @@ bool Det::get_orb(const int orb) const {
   }
 }
 
-Det& Det::set_orb(const int orb, const bool occ) {
-  const int n_orbs = up.get_n_orbs();
+Det& Det::set_orb(const int orb, const int n_orbs, const bool occ) {
   if (orb < n_orbs) {
     up.set_orb(orb, occ);
   } else {

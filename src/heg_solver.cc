@@ -28,9 +28,9 @@ double HEGSolver::get_abs_hamiltonian_by_pqrs(
   const Det zero_det(n_orbs);
   Det det_pq = zero_det;
   Det det_rs = zero_det;
-  det_pq.set_orb(p).set_orb(q);
-  det_rs.set_orb(r).set_orb(s);
-  return fabs(get_hamiltonian_elem(det_pq, det_rs));
+  det_pq.set_orb(p, n_orbs).set_orb(q, n_orbs);
+  det_rs.set_orb(r, n_orbs).set_orb(s, n_orbs);
+  return fabs(get_hamiltonian_elem(det_pq, det_rs, -1, -1));
 }
 
 // Number of bits set before each changed bit.
@@ -41,7 +41,7 @@ int HEGSolver::get_gamma_exp(
   int gamma_exp = 0;
   int ptr = 0;
   const auto& occ = spin_det.get_elec_orbs(n_elecs);
-  for (const int& orb_id: eor) {
+  for (const int orb_id: eor) {
     if (!spin_det.get_orb(orb_id)) continue;
     while (occ[ptr] < orb_id) ptr++;
     gamma_exp += ptr;
@@ -52,8 +52,8 @@ int HEGSolver::get_gamma_exp(
 // Calculate hamiltonian between two determinants.
 double HEGSolver::get_hamiltonian_elem(
     const Det& det_pq, const Det& det_rs,
-    const int n_pq_up, const int n_pq_dn,
-    const int n_rs_up, const int n_rs_dn) const {
+    const int n_up, const int n_dn) const {
+  // n_up n_dn are optional inputs for speed up get_elec_orbs.
   auto& k_vectors = heg.k_vectors;
   const double k_unit = heg.k_unit;
   const double one_over_pi_l = 1.0 / (M_PI * heg.cell_length);
@@ -61,18 +61,16 @@ double HEGSolver::get_hamiltonian_elem(
 
   if (det_pq == det_rs) {
     // Diagonal elements.
-    const auto& occ_pq_up = det_pq.up.get_elec_orbs(n_pq_up);
-    const auto& occ_pq_dn = det_pq.dn.get_elec_orbs(n_pq_dn);
+    const auto& occ_pq_up = det_pq.up.get_elec_orbs(n_up);
+    const auto& occ_pq_dn = det_pq.dn.get_elec_orbs(n_dn);
     const int n_occ_up = occ_pq_up.size();
     const int n_occ_dn = occ_pq_dn.size();
 
     // One electron operator.
-    for (int i = 0; i < n_occ_up; i++) {
-      const int p = occ_pq_up[i];
+    for (const int p: occ_pq_up) {
       H += sum(square(k_vectors[p] * k_unit) * 0.5);
     }
-    for (int i = 0; i < n_occ_dn; i++) {
-      const int p = occ_pq_dn[i];
+    for (const int p: occ_pq_dn) {
       H += sum(square(k_vectors[p] * k_unit) * 0.5);
     }
 
@@ -149,10 +147,10 @@ double HEGSolver::get_hamiltonian_elem(
       H -= one_over_pi_l / sum(square(k_vectors[orb_p] - k_vectors[orb_s]));
     }
     int gamma_exp = 
-        get_gamma_exp(det_pq.up, n_pq_up, eor_up_set_bits) +
-        get_gamma_exp(det_pq.dn, n_pq_dn, eor_dn_set_bits) +
-        get_gamma_exp(det_rs.up, n_rs_up, eor_up_set_bits) +
-        get_gamma_exp(det_rs.dn, n_rs_dn, eor_dn_set_bits);
+        get_gamma_exp(det_pq.up, n_up, eor_up_set_bits) +
+        get_gamma_exp(det_pq.dn, n_dn, eor_dn_set_bits) +
+        get_gamma_exp(det_rs.up, n_up, eor_up_set_bits) +
+        get_gamma_exp(det_rs.dn, n_dn, eor_dn_set_bits);
     if ((gamma_exp & 1) == 1) H = -H;
   }
   return H;
@@ -171,8 +169,8 @@ void HEGSolver::setup() {
   // Basic quantities.
   const double density = 3.0 / (4.0 * M_PI * pow(heg.r_s, 3));
   const double cell_length = pow(n_elecs / density, 1.0 / 3);
-  heg.cell_length = cell_length;
   const double k_unit = 2 * M_PI / cell_length;
+  heg.cell_length = cell_length;
   heg.k_unit = k_unit;
 
   generate_k_vectors();
@@ -183,7 +181,7 @@ void HEGSolver::setup() {
 }
 
 // Find determinants connected to a det passed in.
-// Return as a Wavefunction object with coefs all equal zero.
+// Return as a Wavefunction object with coefs all equal zeroes.
 Wavefunction HEGSolver::find_connected_dets(
     const Det& det, const double eps) {
   Wavefunction connected_dets;
@@ -241,10 +239,11 @@ Wavefunction HEGSolver::find_connected_dets(
       const auto& diff_pr = item.first;
       int r = find_orb_id(diff_pr + k_vectors[pp]);
       if (r < 0) continue;
-      int s = find_orb_id(k_vectors[pp] + k_vectors[qq - qs_offset] - k_vectors[r]);
+      int s = find_orb_id(
+          k_vectors[pp] + k_vectors[qq - qs_offset] - k_vectors[r]);
       if (s < 0) continue;
       if (same_spin && s < r) continue;
-      s = s + qs_offset;
+      s += qs_offset;
       if (p >= n_orbs && q >= n_orbs) {
         r += n_orbs;
         s += n_orbs;
@@ -255,9 +254,10 @@ Wavefunction HEGSolver::find_connected_dets(
       }
 
       // Test whether pqrs is a valid excitation for det.
-      if (det.get_orb(r) || det.get_orb(s)) continue;
+      if (det.get_orb(r, n_orbs) || det.get_orb(s, n_orbs)) continue;
       Det& new_det = connected_dets.append_det(det);
-      new_det.set_orb(p, false).set_orb(q, false).set_orb(r).set_orb(s);
+      new_det.set_orb(p, n_orbs, false).set_orb(q, n_orbs, false);
+      new_det.set_orb(r, n_orbs).set_orb(s, n_orbs);
     }
   }
   return connected_dets;
@@ -305,7 +305,6 @@ void HEGSolver::generate_k_vectors() {
 
 // Generate lookup table from a k_vector to its index.
 void HEGSolver::generate_orb_lut() {
-  const int n_max = heg.n_max;
   for (int i = 0; i < n_orbs; i++) {
     heg.orb_lut[heg.k_vectors[i]] = i;
   }
@@ -314,7 +313,6 @@ void HEGSolver::generate_orb_lut() {
 // Generate core HCI queue for fast connected determinants finding.
 void HEGSolver::generate_hci_queue() {
   auto& k_vectors = heg.k_vectors;
-  const int n_max = heg.n_max;
   max_n_rs_pairs = 0;
   max_abs_H = 0.0;
 
