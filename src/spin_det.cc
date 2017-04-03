@@ -1,6 +1,7 @@
 #include "spin_det.h"
 
 #include <cstddef>
+#include <forward_list>
 #include <iostream>
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
@@ -38,7 +39,7 @@ int SpinDet::get_n_elecs() const {
   return orbs.count();
 }
 
-std::vector<int> SpinDet::get_elec_orbs(const int n_elecs) const {
+std::vector<int> SpinDet::get_elec_orbs(int n_elecs) const {
   std::vector<int> elec_orbs;
   if (n_elecs > 0) elec_orbs.reserve(n_elecs);
   int pos = orbs.find_first();

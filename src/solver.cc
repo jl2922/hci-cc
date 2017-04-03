@@ -45,7 +45,8 @@ void Solver::pt_det(const double eps_pt) {
     // exit(0);
     for (const auto& det_a: connected_dets.get_dets()) {
       if (var_dets_set.count(det_a) == 1) continue;
-      const double H_ai = get_hamiltonian_elem(det_i, det_a);
+      const double H_ai = get_hamiltonian_elem(
+          det_i, det_a, n_up, n_dn, n_up, n_dn);
       if (fabs(H_ai) < Constants::EPSILON) continue;
       const double term = H_ai * coef_i;
       if (pt_sums.count(det_a) == 1) {
@@ -62,7 +63,8 @@ void Solver::pt_det(const double eps_pt) {
   for (auto it = pt_dets.begin(); it != pt_dets.end(); it++) {
     const auto& det_a = *it;
     const double sum_a = pt_sums[det_a];
-    const double H_aa = get_hamiltonian_elem(det_a, det_a);
+    const double H_aa = get_hamiltonian_elem(
+        det_a, det_a, n_up, n_dn, n_up, n_dn);
     pt_energy += pow(sum_a, 2) / (var_energy - H_aa);
   }
   printf("Number of PT dets: %d\n", pt_dets.size());

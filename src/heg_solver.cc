@@ -4,7 +4,9 @@
 #include <cstddef>
 #include <algorithm>
 #include <array>
+#include <forward_list>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -49,7 +51,9 @@ int HEGSolver::get_gamma_exp(
 
 // Calculate hamiltonian between two determinants.
 double HEGSolver::get_hamiltonian_elem(
-    const Det& det_pq, const Det& det_rs) const {
+    const Det& det_pq, const Det& det_rs,
+    const int n_pq_up, const int n_pq_dn,
+    const int n_rs_up, const int n_rs_dn) const {
   auto& k_vectors = heg.k_vectors;
   const double k_unit = heg.k_unit;
   const double one_over_pi_l = 1.0 / (M_PI * heg.cell_length);
@@ -57,8 +61,8 @@ double HEGSolver::get_hamiltonian_elem(
 
   if (det_pq == det_rs) {
     // Diagonal elements.
-    const auto& occ_pq_up = det_pq.up.get_elec_orbs();
-    const auto& occ_pq_dn = det_pq.dn.get_elec_orbs();
+    const auto& occ_pq_up = det_pq.up.get_elec_orbs(n_pq_up);
+    const auto& occ_pq_dn = det_pq.dn.get_elec_orbs(n_pq_dn);
     const int n_occ_up = occ_pq_up.size();
     const int n_occ_dn = occ_pq_dn.size();
 
@@ -145,10 +149,10 @@ double HEGSolver::get_hamiltonian_elem(
       H -= one_over_pi_l / sum(square(k_vectors[orb_p] - k_vectors[orb_s]));
     }
     int gamma_exp = 
-        get_gamma_exp(det_pq.up, n_up, eor_up_set_bits) +
-        get_gamma_exp(det_pq.dn, n_dn, eor_dn_set_bits) +
-        get_gamma_exp(det_rs.up, n_up, eor_up_set_bits) +
-        get_gamma_exp(det_rs.dn, n_dn, eor_dn_set_bits);
+        get_gamma_exp(det_pq.up, n_pq_up, eor_up_set_bits) +
+        get_gamma_exp(det_pq.dn, n_pq_dn, eor_dn_set_bits) +
+        get_gamma_exp(det_rs.up, n_rs_up, eor_up_set_bits) +
+        get_gamma_exp(det_rs.dn, n_rs_dn, eor_dn_set_bits);
     if ((gamma_exp & 1) == 1) H = -H;
   }
   return H;
@@ -188,22 +192,22 @@ Wavefunction HEGSolver::find_connected_dets(
   const auto& k_vectors = heg.k_vectors;
 
   // Get pq pairs.
-  std::vector<IntPair> pq_pairs;
+  std::forward_list<IntPair> pq_pairs;
   const auto& occ_up = det.up.get_elec_orbs(n_up);
   const auto& occ_dn = det.dn.get_elec_orbs(n_dn);
   for (int i = 0; i < n_up; i++) {
     for (int j = i + 1; j < n_up; j++) {
-      pq_pairs.push_back(IntPair(occ_up[i], occ_up[j]));
+      pq_pairs.push_front(IntPair(occ_up[i], occ_up[j]));
     }
   }
   for (int i = 0; i < n_dn; i++) {
     for (int j = i + 1; j < n_dn; j++) {
-      pq_pairs.push_back(IntPair(occ_dn[i] + n_orbs, occ_dn[j] + n_orbs));
+      pq_pairs.push_front(IntPair(occ_dn[i] + n_orbs, occ_dn[j] + n_orbs));
     }
   }
   for (int i = 0; i < n_up; i++) {
     for (int j = 0; j < n_dn; j++) {
-      pq_pairs.push_back(IntPair(occ_up[i], occ_dn[j] + n_orbs));
+      pq_pairs.push_front(IntPair(occ_up[i], occ_dn[j] + n_orbs));
     }
   }
 

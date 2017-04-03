@@ -33,7 +33,10 @@ class HEGSolver: public Solver {
   public:
   protected:
     Wavefunction find_connected_dets(const Det&, const double);
-    double get_hamiltonian_elem(const Det&, const Det&) const;
+    double get_hamiltonian_elem(
+        const Det&, const Det&,
+        const int n_pq_up = -1, const int n_pq_dn = -1,
+        const int n_rs_up = -1, const int n_rs_dn = -1) const;
     void setup();
     HEGData heg;
   private:

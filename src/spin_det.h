@@ -2,6 +2,7 @@
 #define HCI_SPIN_DET_H_
 
 #include <cstddef>
+#include <forward_list>
 #include <iostream>
 #include <vector>
 #include <boost/dynamic_bitset.hpp>

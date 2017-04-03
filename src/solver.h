@@ -11,7 +11,10 @@ class Solver {
     void solve();
   protected:
     virtual Wavefunction find_connected_dets(const Det&, const double) = 0;
-    virtual double get_hamiltonian_elem(const Det&, const Det&) const = 0;
+    virtual double get_hamiltonian_elem(
+        const Det&, const Det&,
+        const int n_pq_up = -1, const int n_pq_dn = -1,
+        const int n_rs_up = -1, const int n_rs_dn = -1) const = 0;
     void pt_det(const double);
     virtual void setup() = 0;
 
