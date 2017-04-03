@@ -160,9 +160,9 @@ double HEGSolver::get_hamiltonian_elem(
 void HEGSolver::setup() {
   // Mock data.
   var_energy = 58.276906085;
-  var_energy = 58.045682102; // large.txt
+  // var_energy = 58.045682102; // large.txt
   heg.r_s = 0.5;
-  heg.r_cutoff = 2.5;
+  heg.r_cutoff = 1.5;
   n_elecs = 14;
   n_up = 7;
   n_dn = 7;

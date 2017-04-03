@@ -45,8 +45,8 @@ void Solver::load_wavefunction(const std::string& filename) {
 // Main solve procedure.
 void Solver::solve() {
   setup();
-  // load_wavefunction("test/WAVE_small");
-  load_wavefunction("test/WAVE_large");
+  load_wavefunction("test/WAVE_small");
+  // load_wavefunction("test/WAVE_large");
   pt_det(0.00001);
   printf("PT Energy: %.10f eV\n", pt_energy);
 }
@@ -68,6 +68,7 @@ void Solver::pt_det(const double eps_pt) {
   const auto& var_coefs = wf.get_coefs();
   auto it_det = var_dets.begin();
   auto it_coef = var_coefs.begin();
+  int progress = 10;
   for (int i = 0; i < n; i++) {
     const auto& det_i = *it_det++;
     const double coef_i = *it_coef++;
@@ -84,6 +85,10 @@ void Solver::pt_det(const double eps_pt) {
         pt_dets.push_back(det_a);
         pt_sums[det_a] = term;
       }
+    }
+    if ((i + 1) * 100 >= n * progress) {
+      printf("Progress: %d%% (%d/%d)\n", progress, i, n);
+      progress += 10;
     }
   }
 
