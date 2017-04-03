@@ -45,8 +45,8 @@ void Solver::load_wavefunction(const std::string& filename) {
 // Main solve procedure.
 void Solver::solve() {
   setup();
-  load_wavefunction("test/WAVE_small");
-  // load_wavefunction("test/WAVE_large");
+  /// load_wavefunction("test/WAVE_small");
+  load_wavefunction("test/WAVE_large");
   pt_det(0.00001);
   printf("PT Energy: %.10f eV\n", pt_energy);
 }

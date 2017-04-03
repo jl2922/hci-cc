@@ -63,13 +63,17 @@ bool SpinDet::get_orb(const int orb) const {
 }
 
 std::size_t hash_value(const SpinDet& spin_det) {
-  std::size_t seed = 0;
-  std::size_t pos = spin_det.orbs.find_first(); 
-  while (pos != boost::dynamic_bitset<>::npos) {
-    boost::hash_combine(seed, pos);
-    pos = spin_det.orbs.find_next(pos);
+  try {
+    return spin_det.orbs.to_ulong();
+  } catch (std::overflow_error& e) {
+    std::size_t seed = 0;
+    std::size_t pos = spin_det.orbs.find_first(); 
+    while (pos != boost::dynamic_bitset<>::npos) {
+      boost::hash_combine(seed, pos);
+      pos = spin_det.orbs.find_next(pos);
+    }
+    return seed;
   }
-  return seed;
 }
 
 }

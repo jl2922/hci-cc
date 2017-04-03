@@ -5,6 +5,7 @@
 *.dSYM/
 Makefile.config
 hci
+massif.*
 
 # Compiled Object files
 *.slo
