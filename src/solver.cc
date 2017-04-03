@@ -53,21 +53,35 @@ void Solver::solve() {
 
 // Deterministic 2nd-order purterbation.
 void Solver::pt_det(const double eps_pt) {
+  // Save variational dets into hash set.
   std::unordered_set<hci::Det, boost::hash<hci::Det>> var_dets_set;
-  std::list<hci::Det> pt_dets;
-  std::unordered_map<hci::Det, double, boost::hash<hci::Det>> pt_sums;
-  const int n = wf.size();
-
-  // Save variational dets.
   const auto& var_dets = wf.get_dets();
   for (const auto& det: var_dets) {
     var_dets_set.insert(det);
   }
 
-  // Calculate sums for each connected det_a.
+  // Estimate connections per det.
+  const int n = wf.size();
+  int hash_buckets = 0;
   const auto& var_coefs = wf.get_coefs();
-  auto it_det = var_dets.begin();
-  auto it_coef = var_coefs.begin();
+  auto it_det = --var_dets.end();
+  auto it_coef = --var_coefs.end();
+  for (int i = 0; i < n; i++) {
+    const auto& det_i = *it_det++;
+    const double coef_i = *it_coef++;
+    if ((i % 100) != 0) continue;
+    const auto& connected_dets =
+        find_connected_dets(det_i, eps_pt / fabs(coef_i));
+    hash_buckets += connected_dets.size();
+  }
+  hash_buckets *= 120;
+  
+  // Accumulate pt_sum for each det_a.
+  std::list<hci::Det> pt_dets;
+  std::unordered_map<hci::Det, double, boost::hash<hci::Det>> pt_sums;
+  pt_sums.reserve(hash_buckets);
+  it_det = var_dets.begin();
+  it_coef = var_coefs.begin();
   int progress = 10;
   for (int i = 0; i < n; i++) {
     const auto& det_i = *it_det++;
@@ -91,6 +105,7 @@ void Solver::pt_det(const double eps_pt) {
       progress += 10;
     }
   }
+  printf("Number of PT dets: %d\n", static_cast<int>(pt_dets.size()));
 
   // Accumulate contribution from each det_a to the pt_energy.
   pt_energy = 0.0;
@@ -100,7 +115,6 @@ void Solver::pt_det(const double eps_pt) {
     const double H_aa = get_hamiltonian_elem(det_a, det_a, n_up, n_dn);
     pt_energy += pow(sum_a, 2) / (var_energy - H_aa);
   }
-  printf("Number of PT dets: %d\n", static_cast<int>(pt_dets.size()));
 }
   
 }
