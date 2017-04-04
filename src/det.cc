@@ -39,6 +39,10 @@ bool Det::get_orb(const int orb, const int n_orbs) const {
   }
 }
 
+bool Det::is_zero() const {
+  return up.is_zero() && dn.is_zero();
+}
+
 Det& Det::set_orb(const int orb, const int n_orbs, const bool occ) {
   if (orb < n_orbs) {
     up.set_orb(orb, occ);

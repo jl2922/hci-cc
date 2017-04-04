@@ -23,16 +23,15 @@ class SpinDet {
     SpinDet& set_orb(const int, const bool occ = true);
     bool get_orb(const int) const;
     void from_eor(const SpinDet&, const SpinDet&);
+    bool is_zero() const;
     void print();
     friend std::size_t hash_value(const SpinDet&);
-//    friend std::ostream& operator<<(std::ostream&, const SpinDet&);
   private:
     boost::dynamic_bitset<> orbs;
 };
 
 bool operator==(const SpinDet&, const SpinDet&);
 std::size_t hash_value(const SpinDet&);
-//std::ostream& operator<<(std::ostream&, const SpinDet&);
 
 }
 

@@ -11,6 +11,8 @@
 #include <boost/functional/hash.hpp>
 #include "constants.h"
 #include "det.h"
+#include "parallel.h"
+#include "types.h"
 #include "wavefunction.h"
 
 namespace hci {
@@ -39,7 +41,8 @@ void Solver::load_wavefunction(const std::string& filename) {
     }
   }
 
-  printf("Loaded wavefunction with %d dets.\n", wf.size());
+  Parallel::getInstance().checkpoint(
+      "Loaded wavefunction with %d dets.\n", wf.size());
 }
 
 // Main solve procedure.
@@ -48,11 +51,12 @@ void Solver::solve() {
   /// load_wavefunction("test/WAVE_small");
   load_wavefunction("test/WAVE_large");
   pt_det(0.00001);
-  printf("PT Energy: %.10f eV\n", pt_energy);
 }
 
 // Deterministic 2nd-order purterbation.
 void Solver::pt_det(const double eps_pt) {
+  auto& parallel = Parallel::getInstance();
+
   // Save variational dets into hash set.
   std::unordered_set<Det, boost::hash<Det>> var_dets_set;
   const auto& var_dets = wf.get_dets();
@@ -76,7 +80,7 @@ void Solver::pt_det(const double eps_pt) {
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
     hash_buckets += connected_dets.size();
   }
-  hash_buckets *= sample_interval * 2;
+  hash_buckets *= sample_interval / parallel.get_n_tasks() * 2;
   
   // Accumulate pt_sum for each det_a.
   std::unordered_map<Det, double, boost::hash<Det>> pt_sums;
@@ -85,6 +89,7 @@ void Solver::pt_det(const double eps_pt) {
   it_coef = var_coefs.begin();
   int progress = 10;
   for (int i = 0; i < n; i++) {
+    if (i % parallel.get_n_tasks() != parallel.get_task_id()) continue;
     const auto& det_i = *it_det++;
     const double coef_i = *it_coef++;
     const auto& connected_dets =
@@ -94,28 +99,57 @@ void Solver::pt_det(const double eps_pt) {
       const double H_ai = get_hamiltonian_elem(det_i, det_a, n_up, n_dn);
       if (fabs(H_ai) < Constants::EPSILON) continue;
       const double term = H_ai * coef_i;
+      int task_owner_id =
+          static_cast<int>(hash_value(det_a)) % parallel.get_n_tasks();
+      if (task_owner_id == parallel.get_task_id()) {
+        if (pt_sums.count(det_a) == 1) {
+          pt_sums[det_a] += term;
+        } else {
+          pt_sums[det_a] = term;
+        }
+      } else {
+        parallel.send<>(task_owner_id, DetDouble(det_a, term));
+      }
+    }
+
+    if ((i + parallel.get_n_tasks()) * 100 >= n * progress) {
+      // printf("Task %d: here prog %d\n", parallel.get_task_id(), progress);
+      printf("Task %d Progress: %d%% (%d/%d) PT dets: %lu, hash load: %.2f\n",
+          parallel.get_task_id(), progress, i, n, pt_sums.size(), pt_sums.load_factor());
+      progress += 10;
+    }
+  }
+  const auto& finishSign = DetDouble(Det(n_orbs), 0.0);
+  parallel.broadcast<>(finishSign);
+  int finishedTasks = 10;
+  while(finishedTasks < parallel.get_n_tasks() - 1) {
+    for (const auto& keyVal: parallel.collect<DetDouble>(finishSign)) {
+      const auto& det_a = keyVal.first;
+      if (det_a.is_zero()) finishedTasks++;
+      const double term = keyVal.second;
       if (pt_sums.count(det_a) == 1) {
         pt_sums[det_a] += term;
       } else {
         pt_sums[det_a] = term;
       }
     }
-    if ((i + 1) * 100 >= n * progress) {
-      printf("Progress: %d%% (%d/%d) PT dets: %lu, hash load: %.2f\n",
-          progress, i, n, pt_sums.size(), pt_sums.load_factor());
-      progress += 10;
-    }
   }
-  printf("Number of PT dets: %lu\n", pt_sums.size());
+  parallel.checkpoint("All PT dets mapped to corresponding tasks.\n");
+  printf("Task %d: Number of PT dets: %lu\n", parallel.get_task_id(), pt_sums.size());
+  int n_pt_dets = parallel.sum(static_cast<int>(pt_sums.size()));
+  parallel.checkpoint("Total Number of PT dets: %lu\n", n_pt_dets);
 
   // Accumulate contribution from each det_a to the pt_energy.
-  pt_energy = 0.0;
+  double pt_energy = 0.0;
   for (auto it = pt_sums.begin(); it != pt_sums.end(); it++) {
     const auto& det_a = it->first;
     const double sum_a = it->second;
     const double H_aa = get_hamiltonian_elem(det_a, det_a, n_up, n_dn);
     pt_energy += pow(sum_a, 2) / (var_energy - H_aa);
   }
+  printf("Task %d: PT correction: %.10f eV\n", parallel.get_task_id(), pt_energy);
+  pt_energy = parallel.sum(pt_energy);
+  parallel.checkpoint("Total PT correction: %.10f eV\n", pt_energy);
 }
   
 }

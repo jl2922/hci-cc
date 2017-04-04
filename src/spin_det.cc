@@ -49,6 +49,10 @@ int SpinDet::get_n_orbs() const {
   return orbs.size();
 }
 
+bool SpinDet::is_zero() const {
+  return orbs.none();
+}
+
 void SpinDet::resize(const int n_orbs) {
   orbs.resize(n_orbs);
 }

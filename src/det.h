@@ -15,6 +15,7 @@ class Det {
     Det& operator=(const Det&);
     bool get_orb(const int, const int) const;
     void from_eor(const Det&, const Det&);
+    bool is_zero() const;
     void resize(const int);
     Det& set_orb(const int, const int, const bool occ = true);
     
