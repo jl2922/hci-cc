@@ -1,15 +1,10 @@
 CONFIG_FILE := Makefile.config
-ifeq ($(wildcard $(CONFIG_FILE)),)
-$(error $(CONFIG_FILE) not found.)
-endif
+ifneq ($(wildcard $(CONFIG_FILE)),)
 include $(CONFIG_FILE)
-
-ifeq ($(wildcard $(BOOST_DIR)),)
-$(error Boost $(BOOST_DIR) not found.)
 endif
 
 CC := mpiCC
-CFLAGS := -std=c++11 -g -Wall -O3 -lboost_mpi # -I $(BOOST_DIR)
+CFLAGS := -std=c++11 -g -Wall -O3
 SRC_DIR := src
 OBJ_DIR := build
 SRCS := $(shell find $(SRC_DIR) ! -name "main.cc" -name "*.cc")
@@ -30,7 +25,7 @@ clean:
 	rm -f $(OBJ_DIR)/*
 
 $(EXE): $(OBJS) $(MAIN)
-	$(CC) $(CFLAGS) $(MAIN) $(OBJS) -o hci
+	$(CC) $(CFLAGS) $(MAIN) $(OBJS) -o hci -lboost_mpi -lboost_serialization
 	
 $(OBJS): $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cc $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@

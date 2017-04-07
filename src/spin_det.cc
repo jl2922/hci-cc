@@ -3,9 +3,14 @@
 #include <cstddef>
 #include <forward_list>
 #include <iostream>
+#include <mutex>
 #include <vector>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/function_output_iterator.hpp>
+#include "hash_combine_iterator.h"
 
 namespace hci {
 
@@ -24,6 +29,11 @@ bool operator==(const SpinDet& lhs, const SpinDet& rhs) {
 SpinDet& SpinDet::operator=(const SpinDet& rhs) {
   orbs = rhs.orbs;
   return *this;
+}
+
+std::ostream& operator<<(std::ostream& os, const SpinDet& spin_det) {
+  os << spin_det.orbs;
+  return os;
 }
 
 void SpinDet::from_eor(const SpinDet& lhs, const SpinDet& rhs) {
@@ -68,11 +78,9 @@ bool SpinDet::get_orb(const int orb) const {
 
 std::size_t hash_value(const SpinDet& spin_det) {
   std::size_t seed = 0;
-  std::size_t pos = spin_det.orbs.find_first(); 
-  while (pos != boost::dynamic_bitset<>::npos) {
-    boost::hash_combine(seed, pos);
-    pos = spin_det.orbs.find_next(pos);
-  }
+  const auto& output_iterator =
+      boost::make_function_output_iterator(HashCombineIterator(seed));
+  to_block_range(spin_det.orbs, output_iterator);
   return seed;
 }
 

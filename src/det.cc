@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <iostream>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 #include <boost/functional/hash.hpp>
 #include "spin_det.h"
 

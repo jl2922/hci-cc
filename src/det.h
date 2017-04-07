@@ -3,6 +3,8 @@
 
 #include <cstddef>
 #include <iostream>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 #include "spin_det.h"
 
 namespace hci {
@@ -18,10 +20,15 @@ class Det {
     bool is_zero() const;
     void resize(const int);
     Det& set_orb(const int, const int, const bool occ = true);
-    
     hci::SpinDet up;
     hci::SpinDet dn;
   private:
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+      ar & up;
+      ar & dn;
+    }
 };
 
 bool operator==(const Det&, const Det&);

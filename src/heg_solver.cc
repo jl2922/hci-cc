@@ -176,6 +176,7 @@ void HEGSolver::setup() {
 
   generate_k_vectors();
   n_orbs = heg.k_vectors.size();
+  printf("# Orbitals: %d\n", n_orbs);
 
   generate_orb_lut();
   generate_hci_queue();
