@@ -3,13 +3,29 @@
 
 #include <list>
 #include <string>
+#include <boost/mpi.hpp>
 #include "det.h"
 #include "wavefunction.h"
 
 namespace hci {
 
+enum MpiTag {
+  TAG_PT_TERM,
+  TAG_PT_SKELETON,
+  TAG_PT_BARRIER
+};
+
+struct MpiData {
+  int id;
+  int n;
+  bool is_master;
+  boost::mpi::environment env;
+  boost::mpi::communicator world;
+};
+
 class Solver {
   public:
+    Solver();
     void solve();
   protected:
     virtual std::list<Det> find_connected_dets(const Det&, const double) = 0;
@@ -29,6 +45,7 @@ class Solver {
     hci::Wavefunction wf;
     double var_energy;
     double pt_energy;
+    MpiData mpi;
 };
 
 }
