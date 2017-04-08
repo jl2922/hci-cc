@@ -10,27 +10,18 @@
 
 namespace hci {
 
-Wavefunction::Wavefunction() {
-  n = 0;
-}
+Wavefunction::Wavefunction() { n = 0; }
 
-Det& Wavefunction::append_det(const Det& det, const double coef) {
+Det &Wavefunction::append_det(const Det &det, const double coef) {
   n++;
   dets.push_back(det);
   coefs.push_back(coef);
   return dets.back();
 }
 
-const std::list<Det>& Wavefunction::get_dets() const {
-  return dets;
-}
+const std::list<Det> &Wavefunction::get_dets() const { return dets; }
 
-const std::list<double>& Wavefunction::get_coefs() const {
-  return coefs;
-}
+const std::list<double> &Wavefunction::get_coefs() const { return coefs; }
 
-int Wavefunction::size() const {
-  return n;
-}
-
+int Wavefunction::size() const { return n; }
 }

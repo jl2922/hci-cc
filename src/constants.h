@@ -6,12 +6,12 @@
 namespace hci {
 
 class Constants {
-  public:
-    static constexpr double EPSILON = std::numeric_limits<double>::epsilon();
-  private:
-    Constants() {}
-};
+ public:
+  static constexpr double EPSILON = std::numeric_limits<double>::epsilon();
 
+ private:
+  Constants() {}
+};
 }
 
 #endif

@@ -1,17 +1,15 @@
 #include "det.h"
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/functional/hash.hpp>
 #include <cstddef>
 #include <iostream>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/functional/hash.hpp>
 #include "spin_det.h"
 
 namespace hci {
 
-Det::Det(const int n_orbs) {
-  resize(n_orbs);
-}
+Det::Det(const int n_orbs) { resize(n_orbs); }
 
 Det::Det(const Det& det) {
   up = det.up;
@@ -41,9 +39,7 @@ bool Det::get_orb(const int orb, const int n_orbs) const {
   }
 }
 
-bool Det::is_zero() const {
-  return up.is_zero() && dn.is_zero();
-}
+bool Det::is_zero() const { return up.is_zero() && dn.is_zero(); }
 
 Det& Det::set_orb(const int orb, const int n_orbs, const bool occ) {
   if (orb < n_orbs) {
@@ -62,31 +58,23 @@ void Det::resize(const int n_orbs) {
 std::vector<BitsBlock> Det::as_vector() const {
   std::vector<BitsBlock> vec;
   vec.reserve(up.orbs.num_blocks() + dn.orbs.num_blocks());
-  to_block_range(up.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
-  to_block_range(dn.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
-  // for (const auto& x: vec) std::cout << x << " ";
-  // std::cout << std::endl;
-  // Det tmp;
-  // tmp.from_vector(vec, 81);
-
+  to_block_range(
+      up.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
+  to_block_range(
+      dn.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
   return vec;
 }
 
 void Det::from_vector(const std::vector<BitsBlock>& vec, const int n_orbs) {
   const int num_blocks = vec.size();
-
   up.orbs.clear();
   up.orbs.reserve(n_orbs);
   for (int i = 0; i < num_blocks / 2; i++) up.orbs.append(vec[i]);
   up.orbs.resize(n_orbs);
-  // std::cout << "up:" << up.orbs << std::endl;
-
   dn.orbs.clear();
   dn.orbs.reserve(n_orbs);
   for (int i = num_blocks / 2; i < num_blocks; i++) dn.orbs.append(vec[i]);
   dn.orbs.resize(n_orbs);
-  // std::cout << "dn:" << dn.orbs << std::endl;
-
 }
 
 std::size_t hash_value(const Det& det) {
@@ -94,7 +82,4 @@ std::size_t hash_value(const Det& det) {
   boost::hash_combine(seed, hash_value(det.dn));
   return seed;
 }
-
-
-
 }
