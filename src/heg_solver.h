@@ -36,6 +36,7 @@ class HEGSolver : public Solver {
   double get_hamiltonian_elem(
       const Det&, const Det&, const int n_up = -1, const int n_dn = -1) const;
   void setup();
+  void read_config(std::ifstream&);
   HEGData heg;
 
  private:

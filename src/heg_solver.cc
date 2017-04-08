@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <forward_list>
+#include <fstream>
 #include <iostream>
 #include <list>
 #include <memory>
@@ -21,6 +22,12 @@
 #include "wavefunction.h"
 
 namespace hci {
+
+void HEGSolver::read_config(std::ifstream& config_file) {
+  config_file >> n_up >> n_dn >> wave_filename >> eps_var >> eps_pt;
+  config_file >> heg.r_s >> heg.r_cutoff;
+  n_elecs = n_up + n_dn;
+}
 
 double HEGSolver::get_abs_hamiltonian_by_pqrs(
     const int p, const int q, const int r, const int s) const {
@@ -159,15 +166,6 @@ double HEGSolver::get_hamiltonian_elem(
 
 // Setup HEG environment and hci queues.
 void HEGSolver::setup() {
-  // Mock data.
-  var_energy = 58.276906085;
-  var_energy = 58.045682102;  // large.txt
-  heg.r_s = 0.5;
-  heg.r_cutoff = 2.5;
-  n_elecs = 14;
-  n_up = 7;
-  n_dn = 7;
-
   // Basic quantities.
   const double density = 3.0 / (4.0 * M_PI * pow(heg.r_s, 3));
   const double cell_length = pow(n_elecs / density, 1.0 / 3);
@@ -177,6 +175,7 @@ void HEGSolver::setup() {
 
   generate_k_vectors();
   n_orbs = heg.k_vectors.size();
+  if (mpi.id == 0) printf("Number of spin orbitals: %d\n", n_orbs * 2);
 
   generate_orb_lut();
   generate_hci_queue();

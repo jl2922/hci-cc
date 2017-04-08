@@ -6,6 +6,7 @@
 Makefile.config
 hci
 massif.*
+CONFIG
 
 # Compiled Object files
 *.slo

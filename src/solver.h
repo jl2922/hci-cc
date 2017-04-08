@@ -30,6 +30,7 @@ class Solver {
       const int n_dn = -1) const = 0;
   void load_wavefunction(const std::string &);
   void pt_det(const double);
+  virtual void read_config(std::ifstream &) = 0;
   virtual void setup() = 0;
 
   double max_abs_H;
@@ -38,9 +39,13 @@ class Solver {
   int n_orbs;
   int n_up;
   int n_dn;
+  std::string wave_filename;
   hci::Wavefunction wf;
+  double hf_energy;
   double var_energy;
   double pt_energy;
+  double eps_var;
+  double eps_pt;
   MpiData mpi;
 };
 }
