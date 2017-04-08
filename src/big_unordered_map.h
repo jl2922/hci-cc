@@ -24,7 +24,6 @@ class BigUnorderedMap {
     void reserve(const unsigned long long);
     unsigned long long bucket_count(const int root = 0) const;
     unsigned long long size(const int root = 0) const;
-    V sum(const int root = 0) const;
     void async_inc(const K&, const V&);
     void complete_async_incs();
     enum {TAG_KV, TAG_TRUNK_FINISH, TAG_FINISH};
@@ -36,9 +35,9 @@ class BigUnorderedMap {
     int n_procs;
     std::unordered_map<K, V, H> local_map;
     int buf_size;
-    int buf_cnt;
-    std::vector<std::pair<K, V>> buf;
-    std::vector<boost::mpi::content> bufc;
+    int send_buf_cnt;
+    std::vector<std::pair<K, V>> buf_send;
+    std::vector<boost::mpi::content> bufc_send;
     std::pair<K, V> buf_recv;
     boost::mpi::content bufc_recv;
     H hasher;
@@ -59,10 +58,10 @@ BigUnorderedMap<K, V, H>::BigUnorderedMap(
   this->proc_id = world.rank();
   this->n_procs = world.size();
   this->hasher = H();
-  this->buf_cnt = 0;
+  this->send_buf_cnt = 0;
   this->buf_size = buf_size;
-  buf.resize(buf_size);
-  bufc.resize(buf_size);
+  buf_send.resize(buf_size);
+  bufc_send.resize(buf_size);
   send_cnts.resize(n_procs);
   recv_cnts.resize(n_procs);
   recv_totals.resize(n_procs);
@@ -71,7 +70,7 @@ BigUnorderedMap<K, V, H>::BigUnorderedMap(
     recv_totals[i] = std::numeric_limits<unsigned long long>::max();
     recv_trunk_totals[i] = std::numeric_limits<unsigned long long>::max();
   }
-  // this->set_skeleton(skeleton);
+  this->set_skeleton(skeleton);
 }
 
 template<class K, class V, class H>
@@ -82,8 +81,8 @@ void BigUnorderedMap<K, V, H>::reserve(const unsigned long long n_buckets) {
 template<class K, class V, class H>
 void BigUnorderedMap<K, V, H>::set_skeleton(const std::pair<K, V>& skeleton) {
   for (int i = 0; i < buf_size; i++) {
-    buf[i] = skeleton;
-    bufc[i] = boost::mpi::get_content(buf[i]);
+    buf_send[i] = skeleton;
+    bufc_send[i] = boost::mpi::get_content(buf_send[i]);
   }
   buf_recv = skeleton;
   bufc_recv = boost::mpi::get_content(buf_recv);
@@ -118,22 +117,23 @@ void BigUnorderedMap<K, V, H>::async_inc(const K& key, const V& value) {
   // Local process.
   if (target == proc_id) {
     local_map[key] += value;
+    send_cnts[proc_id]++;
     return;
   }
 
   // Send to target asynchronously.
-  buf[buf_cnt].first = key;
-  buf[buf_cnt].second = value;
-  // reqs.push_front(world->isend(target, TAG_KV, bufc[buf_cnt]));
-  reqs.push_front(world->isend(target, TAG_KV, buf[buf_cnt]));
+  buf_send[send_buf_cnt].first = key;
+  buf_send[send_buf_cnt].second = value;
+  reqs.push_front(world->isend(target, TAG_KV, bufc_send[send_buf_cnt]));
+  if (target >= n_procs) exit(1);
   send_cnts[target]++;
   if (send_cnts[target] == std::numeric_limits<unsigned long long>::max()) {
     printf("Maximum number of sends reached.\n");
     exit(1);
   }
-  buf_cnt++;
+  send_buf_cnt++;
 
-  if (buf_cnt == buf_size) {
+  if (send_buf_cnt == buf_size) {
     // When buffer is full, wait and process a trunk.
     // A trunk contains 'buf_size' send-requests from each process.
     for (int i = 0; i < n_procs; i++) {
@@ -141,11 +141,6 @@ void BigUnorderedMap<K, V, H>::async_inc(const K& key, const V& value) {
       reqs.push_front(world->isend(i, TAG_TRUNK_FINISH, send_cnts[i]));
     }
     complete_async_inc_trunk();
-    reqs.clear();
-    for (int i = 0; i < n_procs; i++) {
-      recv_trunk_totals[i] = std::numeric_limits<unsigned long long>::max();
-    }
-    buf_cnt = 0;
   }
 }
 
@@ -162,8 +157,7 @@ void BigUnorderedMap<K, V, H>::complete_async_inc_trunk() {
     const int tag = status.tag();
     switch (tag) {
       case TAG_KV: {
-        // world->recv(source, tag, bufc_recv);
-        world->recv(source, tag, buf_recv);
+        world->recv(source, tag, bufc_recv);
         const K& key = buf_recv.first;
         const V& value = buf_recv.second;
         local_map[key] += value;
@@ -174,20 +168,25 @@ void BigUnorderedMap<K, V, H>::complete_async_inc_trunk() {
         break;
       }
       case TAG_TRUNK_FINISH: {
-        world->recv(source, tag, recv_trunk_totals[source]);
+        world->recv(source, TAG_TRUNK_FINISH, recv_trunk_totals[source]);
         if (recv_trunk_totals[source] == recv_cnts[source]) {
           trunk_finish_cnt++;
         }
         break;
       }
       case TAG_FINISH: {
-        world->recv(source, tag, recv_totals[source]);
+        world->recv(source, TAG_FINISH, recv_totals[source]);
         if (recv_totals[source] == recv_cnts[source]) trunk_finish_cnt++;
         break;
       }
     }
   }
-  world->barrier();
+  wait_all(reqs.begin(), reqs.end());
+  reqs.clear();
+  for (int i = 0; i < n_procs; i++) {
+    recv_trunk_totals[i] = std::numeric_limits<unsigned long long>::max();
+  }
+  send_buf_cnt = 0;
 }
 
 template<class K, class V, class H>
@@ -205,8 +204,8 @@ void BigUnorderedMap<K, V, H>::complete_async_incs() {
 
     switch (tag) {
       case TAG_KV: {
-        // world->recv(source, tag, bufc_recv);
-        world->recv(source, tag, buf_recv);
+        world->recv(source, tag, bufc_recv);
+        // world->recv(source, TAG_KV, buf_recv);
         const K& key = buf_recv.first;
         const V& value = buf_recv.second;
         local_map[key] += value;
@@ -215,33 +214,20 @@ void BigUnorderedMap<K, V, H>::complete_async_incs() {
         break;
       }
       case TAG_TRUNK_FINISH: {
-        world->recv(source, tag, recv_trunk_totals[source]);
+        world->recv(source, TAG_TRUNK_FINISH, recv_trunk_totals[source]);
         break;
       }
       case TAG_FINISH: {
-        world->recv(source, tag, recv_totals[source]);
+        world->recv(source, TAG_FINISH, recv_totals[source]);
         if (recv_totals[source] == recv_cnts[source]) n_active_procs--;
         break;
       }
     }
   }
+  wait_all(reqs.begin(), reqs.end());
   reqs.clear();
-  buf_cnt = 0;
+  send_buf_cnt = 0;
   world->barrier();
-}
-
-template<class K, class V, class H>
-V BigUnorderedMap<K, V, H>::sum(const int root) const {
-  // Only root process gets result.
-  world->barrier();
-  V local_sum = 0;
-  for (const auto& kv: local_map) {
-    local_sum += kv.second;
-  }
-  printf("local sum: %.10f\n", local_sum);
-  V total_sum;
-  reduce(*world, local_sum, total_sum, std::plus<V>(), root);
-  return total_sum;
 }
 
 #endif // BIG_UNORDERED_MAP_H_

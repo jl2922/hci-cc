@@ -97,7 +97,7 @@ void Solver::pt_det(const double eps_pt) {
   std::pair<std::vector<BitsBlock>, double> skeleton;
   skeleton.first = Det(n_orbs).as_vector();
   BigUnorderedMap<std::vector<BitsBlock>, double, 
-      boost::hash<std::vector<BitsBlock>>> pt_sums_new(mpi.world, skeleton);
+      boost::hash<std::vector<BitsBlock>>> pt_sums_new(mpi.world, skeleton, 200);
   pt_sums_new.reserve(hash_buckets);
   if (mpi.id == 0) printf("Setup hash map with # buckets: %d\n", hash_buckets);
   // pt_sums.reserve(hash_buckets);
@@ -106,9 +106,9 @@ void Solver::pt_det(const double eps_pt) {
   it_coef = var_coefs.begin();
   int progress = 10;
   for (int i = 0; i < n; i++) {
-    if (i % mpi.n != mpi.id) continue;
     const auto& det_i = *it_det++;
     const double coef_i = *it_coef++;
+    if (i % mpi.n != mpi.id) continue;
     const auto& connected_dets =
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
     for (const auto& det_a: connected_dets) {
@@ -120,8 +120,9 @@ void Solver::pt_det(const double eps_pt) {
       pt_sums_new.async_inc(det_a.as_vector(), term);
     }
     if ((i + 1) * 100 >= n * progress && mpi.id == 0) {
-      printf("Master Progress: %d%% (%d/%d) PT dets: %lu, hash load: %.2f\n",
-          progress, i, n, pt_sums.size(), pt_sums.load_factor());
+      const auto& local_map = pt_sums_new.get_local_map();
+      printf("MASTER: Progress: %d%% (%d/%d), PT dets: %lu, hash load: %.2f\n",
+          progress, i, n, local_map.size(), local_map.load_factor());
       progress += 10;
     }
   }
@@ -135,21 +136,23 @@ void Solver::pt_det(const double eps_pt) {
   // Accumulate contribution from each det_a to the pt_energy.
   pt_energy = 0.0;
   Det det_a;
+  double pt_energy_local = 0.0;
   for (const auto& kv: pt_sums_new.get_local_map()) {
     det_a.from_vector(kv.first, n_orbs);
     const double sum_a = kv.second;
     // printf("sum_a: %.10f\n", sum_a);
     const double H_aa = get_hamiltonian_elem(det_a, det_a, n_up, n_dn);
     // printf("H_aa: %.10f\n", H_aa);
-    pt_energy += pow(sum_a, 2) / (var_energy - H_aa);
+    pt_energy_local += pow(sum_a, 2) / (var_energy - H_aa);
   }
+  reduce(mpi.world, pt_energy_local, pt_energy, std::plus<double>(), 0);
   // for (auto it = pt_sums.begin(); it != pt_sums.end(); it++) {
   //   const auto& det_a = it->first;
   //   const double sum_a = it->second;
   //   const double H_aa = get_hamiltonian_elem(det_a, det_a, n_up, n_dn);
   //   pt_energy += pow(sum_a, 2) / (var_energy - H_aa);
   // }
-  printf("PT energy correction: %.10f\n", pt_energy);
+  if (mpi.id == 0) printf("PT energy correction: %.10f\n", pt_energy);
 }
   
 }
