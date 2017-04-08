@@ -32,15 +32,14 @@ class BigUnorderedMap {
  private:
   void complete_async_inc_trunk();  // Used by async inc when buf full.
   void set_skeleton(const std::pair<K, V>&);  // Called at the beginning.
-  void reset_cnts();                          // Reset send and recv counts.
+  void reset_cnts();  // Reset send and recv counts.
   int proc_id;
   int n_procs;
   std::unordered_map<K, V, H> local_map;
   int buf_size;
   int send_buf_cnt;
-  // buf_send(recv)_content stores content of buf_send(recv) w/o
-  // structure.
-  // MPI sends content only.
+  // buf_send(recv)_content stores content of buf_send(recv)
+  // MPI sends content only without structure.
   std::vector<std::pair<K, V>> buf_send;
   std::vector<boost::mpi::content> buf_send_content;
   std::pair<K, V> buf_recv;
@@ -129,9 +128,7 @@ void BigUnorderedMap<K, V, H>::async_inc(const K& key, const V& value) {
   reqs.push_front(world->isend(target, TAG_KV, buf_send_content[send_buf_cnt]));
   send_cnts[target]++;
   if (send_cnts[target] == std::numeric_limits<unsigned long long>::max()) {
-    printf(
-        "Maximum number of sends reached. Call complete async "
-        "first.\n");
+    printf("Maximum sends reached. Call complete async first.\n");
     exit(1);
   }
   send_buf_cnt++;
