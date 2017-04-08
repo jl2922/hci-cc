@@ -3,7 +3,7 @@ ifneq ($(wildcard $(CONFIG_FILE)),)
 include $(CONFIG_FILE)
 endif
 
-CC := mpiCC
+CC := mpic++
 CFLAGS := -std=c++11 -g -Wall -O3
 SRC_DIR := src
 OBJ_DIR := build

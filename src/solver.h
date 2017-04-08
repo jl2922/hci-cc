@@ -9,16 +9,9 @@
 
 namespace hci {
 
-enum MpiTag {
-  TAG_PT_TERM,
-  TAG_PT_SKELETON,
-  TAG_PT_BARRIER
-};
-
 struct MpiData {
   int id;
   int n;
-  bool is_master;
   boost::mpi::environment env;
   boost::mpi::communicator world;
 };

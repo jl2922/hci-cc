@@ -21,13 +21,14 @@ class BigUnorderedMap {
         boost::mpi::communicator& world,
         const std::pair<K, V>& skeleton,
         const int buf_size = 100);
-    void rehash(const unsigned long long);
+    void reserve(const unsigned long long);
     unsigned long long bucket_count(const int root = 0) const;
     unsigned long long size(const int root = 0) const;
     V sum(const int root = 0) const;
     void async_inc(const K&, const V&);
     void complete_async_incs();
     enum {TAG_KV, TAG_TRUNK_FINISH, TAG_FINISH};
+    std::unordered_map<K, V, H>& get_local_map() { return local_map; }
   private:
     void complete_async_inc_trunk();
     void set_skeleton(const std::pair<K, V>&);
@@ -70,12 +71,12 @@ BigUnorderedMap<K, V, H>::BigUnorderedMap(
     recv_totals[i] = std::numeric_limits<unsigned long long>::max();
     recv_trunk_totals[i] = std::numeric_limits<unsigned long long>::max();
   }
-  this->set_skeleton(skeleton);
+  // this->set_skeleton(skeleton);
 }
 
 template<class K, class V, class H>
-void BigUnorderedMap<K, V, H>::rehash(const unsigned long long n_buckets) {
-  local_map.rehash(static_cast<std::size_t>(n_buckets / n_procs + 1));
+void BigUnorderedMap<K, V, H>::reserve(const unsigned long long n_buckets) {
+  local_map.reserve(static_cast<std::size_t>(n_buckets / n_procs + 1));
 }
 
 template<class K, class V, class H>
@@ -105,6 +106,7 @@ unsigned long long BigUnorderedMap<K, V, H>::size(const int root) const {
   unsigned long long local_size = 
       static_cast<unsigned long long>(local_map.size());
   unsigned long long total_size = 0;
+  printf("Local size: %llu\n", local_size);
   reduce(*world, local_size, total_size, std::plus<unsigned long long>(), root);
   return total_size;
 }
@@ -122,7 +124,8 @@ void BigUnorderedMap<K, V, H>::async_inc(const K& key, const V& value) {
   // Send to target asynchronously.
   buf[buf_cnt].first = key;
   buf[buf_cnt].second = value;
-  reqs.push_front(world->isend(target, TAG_KV, bufc[buf_cnt]));
+  // reqs.push_front(world->isend(target, TAG_KV, bufc[buf_cnt]));
+  reqs.push_front(world->isend(target, TAG_KV, buf[buf_cnt]));
   send_cnts[target]++;
   if (send_cnts[target] == std::numeric_limits<unsigned long long>::max()) {
     printf("Maximum number of sends reached.\n");
@@ -159,7 +162,8 @@ void BigUnorderedMap<K, V, H>::complete_async_inc_trunk() {
     const int tag = status.tag();
     switch (tag) {
       case TAG_KV: {
-        world->recv(source, tag, bufc_recv);
+        // world->recv(source, tag, bufc_recv);
+        world->recv(source, tag, buf_recv);
         const K& key = buf_recv.first;
         const V& value = buf_recv.second;
         local_map[key] += value;
@@ -183,6 +187,7 @@ void BigUnorderedMap<K, V, H>::complete_async_inc_trunk() {
       }
     }
   }
+  world->barrier();
 }
 
 template<class K, class V, class H>
@@ -200,7 +205,8 @@ void BigUnorderedMap<K, V, H>::complete_async_incs() {
 
     switch (tag) {
       case TAG_KV: {
-        world->recv(source, tag, bufc_recv);
+        // world->recv(source, tag, bufc_recv);
+        world->recv(source, tag, buf_recv);
         const K& key = buf_recv.first;
         const V& value = buf_recv.second;
         local_map[key] += value;
@@ -227,10 +233,12 @@ void BigUnorderedMap<K, V, H>::complete_async_incs() {
 template<class K, class V, class H>
 V BigUnorderedMap<K, V, H>::sum(const int root) const {
   // Only root process gets result.
+  world->barrier();
   V local_sum = 0;
   for (const auto& kv: local_map) {
     local_sum += kv.second;
   }
+  printf("local sum: %.10f\n", local_sum);
   V total_sum;
   reduce(*world, local_sum, total_sum, std::plus<V>(), root);
   return total_sum;

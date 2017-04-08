@@ -12,7 +12,7 @@ namespace hci {
 Det::Det(const int n_orbs) {
   resize(n_orbs);
 }
-  
+
 Det::Det(const Det& det) {
   up = det.up;
   dn = det.dn;
@@ -57,6 +57,36 @@ Det& Det::set_orb(const int orb, const int n_orbs, const bool occ) {
 void Det::resize(const int n_orbs) {
   up.resize(n_orbs);
   dn.resize(n_orbs);
+}
+
+std::vector<BitsBlock> Det::as_vector() const {
+  std::vector<BitsBlock> vec;
+  vec.reserve(up.orbs.num_blocks() + dn.orbs.num_blocks());
+  to_block_range(up.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
+  to_block_range(dn.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
+  // for (const auto& x: vec) std::cout << x << " ";
+  // std::cout << std::endl;
+  // Det tmp;
+  // tmp.from_vector(vec, 81);
+
+  return vec;
+}
+
+void Det::from_vector(const std::vector<BitsBlock>& vec, const int n_orbs) {
+  const int num_blocks = vec.size();
+
+  up.orbs.clear();
+  up.orbs.reserve(n_orbs);
+  for (int i = 0; i < num_blocks / 2; i++) up.orbs.append(vec[i]);
+  up.orbs.resize(n_orbs);
+  // std::cout << "up:" << up.orbs << std::endl;
+
+  dn.orbs.clear();
+  dn.orbs.reserve(n_orbs);
+  for (int i = num_blocks / 2; i < num_blocks; i++) dn.orbs.append(vec[i]);
+  dn.orbs.resize(n_orbs);
+  // std::cout << "dn:" << dn.orbs << std::endl;
+
 }
 
 std::size_t hash_value(const Det& det) {

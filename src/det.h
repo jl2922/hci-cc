@@ -20,6 +20,8 @@ class Det {
     bool is_zero() const;
     void resize(const int);
     Det& set_orb(const int, const int, const bool occ = true);
+    std::vector<BitsBlock> as_vector() const;
+    void from_vector(const std::vector<BitsBlock>&, const int);
     hci::SpinDet up;
     hci::SpinDet dn;
   private:

@@ -17,6 +17,7 @@ namespace hci {
 typedef uint32_t BitsBlock;
 
 class SpinDet {
+  friend class Det;
   friend class boost::serialization::access;
   friend std::ostream& operator<<(std::ostream&, const SpinDet&);
   public:
