@@ -1,5 +1,6 @@
 #include "solver.h"
 
+#include <algorithm>
 #include <boost/functional/hash.hpp>
 #include <boost/mpi.hpp>
 #include <boost/mpi/communicator.hpp>
@@ -103,7 +104,7 @@ void Solver::pt_det(const double eps_pt) {
   const auto& var_coefs = wf.get_coefs();
   auto it_det = var_dets.begin();
   auto it_coef = var_coefs.begin();
-  const int sample_interval = 100;
+  const int sample_interval = std::min(n / 500, 100);
   for (int i = 0; i < n; i++) {
     const auto& det_i = *it_det++;
     const double coef_i = *it_coef++;
