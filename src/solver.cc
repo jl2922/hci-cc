@@ -111,7 +111,7 @@ void Solver::pt_det(const double eps_pt) {
 
   // Accumulate pt_sum for each det_a.
   std::pair<std::pair<EncodeType, EncodeType>, double> skeleton;
-  skeleton.first = Det(n_orbs).encode();
+  skeleton.first = var_dets.front().encode();
   BigUnorderedMap<
       std::pair<EncodeType, EncodeType>,
       double,

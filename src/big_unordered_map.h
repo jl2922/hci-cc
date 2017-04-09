@@ -233,8 +233,6 @@ void BigUnorderedMap<K, V, H>::reset_cnts() {
   send_buf_cnt = 0;
   send_cnts.assign(n_procs, 0);
   recv_cnts.assign(n_procs, 0);
-  recv_totals.assign(n_procs, 0);
-  recv_trunk_totals.assign(n_procs, 0);
   recv_totals.assign(n_procs, std::numeric_limits<unsigned long long>::max());
   recv_trunk_totals.assign(
       n_procs, std::numeric_limits<unsigned long long>::max());
