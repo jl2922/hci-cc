@@ -110,12 +110,12 @@ void Solver::pt_det(const double eps_pt) {
   all_reduce(mpi.world, hash_buckets_local, hash_buckets, std::plus<int>());
 
   // Accumulate pt_sum for each det_a.
-  std::pair<std::vector<BitsBlock>, double> skeleton;
-  skeleton.first = Det(n_orbs).as_vector();
+  std::pair<std::pair<EncodeType, EncodeType>, double> skeleton;
+  skeleton.first = Det(n_orbs).encode();
   BigUnorderedMap<
-      std::vector<BitsBlock>,
+      std::pair<EncodeType, EncodeType>,
       double,
-      boost::hash<std::vector<BitsBlock>>>
+      boost::hash<std::pair<EncodeType, EncodeType>>>
       pt_sums(mpi.world, skeleton, 200);
   pt_sums.reserve(hash_buckets);
   if (mpi.id == 0) printf("Reserve hash map with %d buckets.\n", hash_buckets);
@@ -133,7 +133,7 @@ void Solver::pt_det(const double eps_pt) {
       const double H_ai = get_hamiltonian_elem(det_i, det_a, n_up, n_dn);
       if (fabs(H_ai) < Constants::EPSILON) continue;
       const double term = H_ai * coef_i;
-      pt_sums.async_inc(det_a.as_vector(), term);
+      pt_sums.async_inc(det_a.encode(), term);
     }
     if ((i + 1) * 100 >= n * progress && mpi.id == 0) {
       const auto& local_map = pt_sums.get_local_map();
@@ -157,7 +157,7 @@ void Solver::pt_det(const double eps_pt) {
   Det det_a;
   double pt_energy_local = 0.0;
   for (const auto& kv : pt_sums.get_local_map()) {
-    det_a.from_vector(kv.first, n_orbs);
+    det_a.decode(kv.first, n_orbs);
     const double sum_a = kv.second;
     const double H_aa = get_hamiltonian_elem(det_a, det_a, n_up, n_dn);
     pt_energy_local += pow(sum_a, 2) / (var_energy - H_aa);

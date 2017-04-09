@@ -14,9 +14,10 @@
 namespace hci {
 
 typedef uint32_t BitsBlock;
+typedef uint32_t EncodeBlock;
+typedef std::vector<EncodeBlock> EncodeType;
 
 class SpinDet {
-  friend class Det;
   friend class boost::serialization::access;
   friend std::ostream &operator<<(std::ostream &, const SpinDet &);
 
@@ -35,6 +36,8 @@ class SpinDet {
   void from_eor(const SpinDet &, const SpinDet &);
   bool is_zero() const;
   void print();
+  EncodeType encode() const;
+  void decode(const EncodeType &, const int n_orbs);
   friend std::size_t hash_value(const SpinDet &);
 
  private:

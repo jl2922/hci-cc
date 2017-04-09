@@ -61,6 +61,20 @@ SpinDet &SpinDet::set_orb(const int orb, const bool occ) {
   return *this;
 }
 
+EncodeType SpinDet::encode() const {
+  EncodeType vec;
+  vec.reserve(orbs.num_blocks());
+  to_block_range(orbs, std::back_insert_iterator<EncodeType>(vec));
+  return vec;
+}
+
+void SpinDet::decode(const EncodeType& vec, const int n_orbs) {
+  orbs.clear();
+  orbs.reserve(n_orbs);
+  for (const auto& block: vec) orbs.append(block);
+  orbs.resize(n_orbs);
+}
+
 bool SpinDet::get_orb(const int orb) const { return orbs.test(orb); }
 
 std::size_t hash_value(const SpinDet &spin_det) {

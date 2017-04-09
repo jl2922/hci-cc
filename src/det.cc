@@ -55,26 +55,16 @@ void Det::resize(const int n_orbs) {
   dn.resize(n_orbs);
 }
 
-std::vector<BitsBlock> Det::as_vector() const {
-  std::vector<BitsBlock> vec;
-  vec.reserve(up.orbs.num_blocks() + dn.orbs.num_blocks());
-  to_block_range(
-      up.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
-  to_block_range(
-      dn.orbs, std::back_insert_iterator<std::vector<BitsBlock>>(vec));
-  return vec;
+std::pair<EncodeType, EncodeType> Det::encode() const {
+  std::pair<EncodeType, EncodeType> pair;
+  pair.first = up.encode();
+  pair.second = dn.encode();
+  return pair;
 }
 
-void Det::from_vector(const std::vector<BitsBlock>& vec, const int n_orbs) {
-  const int num_blocks = vec.size();
-  up.orbs.clear();
-  up.orbs.reserve(n_orbs);
-  for (int i = 0; i < num_blocks / 2; i++) up.orbs.append(vec[i]);
-  up.orbs.resize(n_orbs);
-  dn.orbs.clear();
-  dn.orbs.reserve(n_orbs);
-  for (int i = num_blocks / 2; i < num_blocks; i++) dn.orbs.append(vec[i]);
-  dn.orbs.resize(n_orbs);
+void Det::decode(const std::pair<EncodeType, EncodeType>& pair, const int n_orbs) {
+  up.decode(pair.first, n_orbs);
+  dn.decode(pair.second, n_orbs);
 }
 
 std::size_t hash_value(const Det& det) {
