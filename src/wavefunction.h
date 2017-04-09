@@ -12,6 +12,11 @@ class Wavefunction {
   Det& append_det(const Det&, const double coef = 0.0);
   const std::list<Det>& get_dets() const;
   const std::list<double>& get_coefs() const;
+  void clear() {
+    dets.clear();
+    coefs.clear();
+    n = 0;
+  }
   int size() const;
 
  private:

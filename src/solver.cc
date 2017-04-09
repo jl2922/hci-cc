@@ -131,11 +131,23 @@ void Solver::pt_det(const double eps_pt) {
   }
   it_det = var_dets.begin();
   it_coef = var_coefs.begin();
-  int progress = 10;
+  std::vector<Det> var_dets_shrinked;
+  std::vector<double> var_coefs_shrinked;
+  var_dets_shrinked.reserve(n / mpi.n + 1);
+  var_coefs_shrinked.reserve(n / mpi.n + 1);
   for (int i = 0; i < n; i++) {
     const auto& det_i = *it_det++;
     const double coef_i = *it_coef++;
     if (i % mpi.n != mpi.id) continue;
+    var_dets_shrinked.push_back(det_i);
+    var_coefs_shrinked.push_back(coef_i);
+  }
+  wf.clear();
+  int progress = 10;
+  const int local_n = static_cast<int>(var_dets_shrinked.size());
+  for (int i = 0; i < local_n; i++) {
+    const auto& det_i = var_dets_shrinked[i];
+    const double coef_i = var_coefs_shrinked[i];
     const auto& connected_dets =
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
     for (const auto& det_a : connected_dets) {
@@ -145,13 +157,13 @@ void Solver::pt_det(const double eps_pt) {
       const double term = H_ai * coef_i;
       pt_sums.async_inc(det_a.encode(), term);
     }
-    if ((i + 1) * 100 >= n * progress && mpi.id == 0) {
+    if ((i + 1) * 100 >= local_n * progress && mpi.id == 0) {
       const auto& local_map = pt_sums.get_local_map();
       printf(
           "MASTER: Progress: %d%% (%d/%d), PT dets: %lu, hash load: %.2f\n",
           progress,
           i,
-          n,
+          local_n,
           local_map.size(),
           local_map.load_factor());
       fflush(stdout);
