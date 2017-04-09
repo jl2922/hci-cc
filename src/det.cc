@@ -5,7 +5,12 @@
 #include <boost/functional/hash.hpp>
 #include <cstddef>
 #include <iostream>
+
+#ifdef BIG_SPIN_DET
+#include "big_spin_det.h"
+#else
 #include "spin_det.h"
+#endif
 
 namespace hci {
 

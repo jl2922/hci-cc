@@ -5,7 +5,13 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <cstddef>
 #include <iostream>
+
+#ifdef BIG_SPIN_DET
+#include "big_spin_det.h"
+#define SpinDet BigSpinDet
+#else
 #include "spin_det.h"
+#endif
 
 namespace hci {
 
