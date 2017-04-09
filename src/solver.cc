@@ -75,12 +75,18 @@ void Solver::load_wavefunction(const std::string& filename) {
   }
 
   mpi.world.barrier();
-  if (mpi.id == 0) printf("Loaded wavefunction w/ %d dets.\n", wf.size());
+  if (mpi.id == 0) {
+    printf("Loaded wavefunction w/ %d dets.\n", wf.size());
+    fflush(stdout);
+  }
 }
 
 // Deterministic 2nd-order purterbation.
 void Solver::pt_det(const double eps_pt) {
-  if (mpi.id == 0) printf("Performing PT with %d procs.\n", mpi.n);
+  if (mpi.id == 0) {
+    printf("Performing PT with %d procs.\n", mpi.n);
+    fflush(stdout);
+  }
   auto begin = std::chrono::high_resolution_clock::now();
 
   // Save variational dets into hash set.
@@ -118,7 +124,10 @@ void Solver::pt_det(const double eps_pt) {
       boost::hash<std::pair<EncodeType, EncodeType>>>
       pt_sums(mpi.world, skeleton, 200);
   pt_sums.reserve(hash_buckets);
-  if (mpi.id == 0) printf("Reserve hash map with %d buckets.\n", hash_buckets);
+  if (mpi.id == 0) {
+    printf("Reserve hash map with %d buckets.\n", hash_buckets);
+    fflush(stdout);
+  }
   it_det = var_dets.begin();
   it_coef = var_coefs.begin();
   int progress = 10;
@@ -144,13 +153,17 @@ void Solver::pt_det(const double eps_pt) {
           n,
           local_map.size(),
           local_map.load_factor());
+      fflush(stdout);
       progress += 10;
     }
   }
   pt_sums.complete_async_incs();
 
   std::size_t n_pt_dets = pt_sums.size();
-  if (mpi.id == 0) printf("Number of PT dets: %lu\n", n_pt_dets);
+  if (mpi.id == 0) {
+    printf("Number of PT dets: %lu\n", n_pt_dets);
+    fflush(stdout);
+  }
 
   // Accumulate contribution from each det_a to the pt_energy.
   pt_energy = 0.0;
