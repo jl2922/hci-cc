@@ -28,6 +28,8 @@ class BigUnorderedMap {
   void async_inc(const K&, const V&);
   void complete_async_incs();  // Must be called to complete async inc reqs.
   const std::unordered_map<K, V, H>& get_local_map() { return local_map; }
+  static void all_combine(
+      std::unordered_map<K, V, H>&, boost::mpi::communicator&);
 
  private:
   void complete_async_inc_trunk();  // Used by async inc when buf full.
@@ -236,6 +238,14 @@ void BigUnorderedMap<K, V, H>::reset_cnts() {
   recv_totals.assign(n_procs, std::numeric_limits<unsigned long long>::max());
   recv_trunk_totals.assign(
       n_procs, std::numeric_limits<unsigned long long>::max());
+}
+
+template <class K, class V, class H>
+void BigUnorderedMap<K, V, H>::all_combine(
+    std::unordered_map<K, V, H>& local_map, boost::mpi::communicator& world) {
+  const int proc_id = world.rank();
+  const int n = world.size();
+  world.barrier();
 }
 
 #endif  // BIG_UNORDERED_MAP_H_

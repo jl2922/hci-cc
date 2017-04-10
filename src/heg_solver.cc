@@ -15,12 +15,13 @@
 #include <valarray>
 #include <vector>
 #include "array_math.h"
+#include "big_unordered_map.h"
 #include "constants.h"
 #include "det.h"
 #include "solver.h"
+#include "status.h"
 #include "types.h"
 #include "wavefunction.h"
-#include "status.h"
 namespace hci {
 
 void HEGSolver::read_config(std::ifstream& config_file) {
@@ -347,7 +348,7 @@ void HEGSolver::generate_hci_queue() {
       }
     }
   }
-  for (auto& kv: heg.same_spin_queue) {
+  for (auto& kv : heg.same_spin_queue) {
     auto& items = kv.second;
     std::sort(
         items.begin(),
@@ -359,6 +360,8 @@ void HEGSolver::generate_hci_queue() {
     const int n_items = static_cast<int>(items.size());
     max_n_rs_pairs = std::max(max_n_rs_pairs, n_items);
   }
+  BigUnorderedMap<Int3, std::vector<Int3Double>, boost::hash<Int3>>::
+      all_combine(heg.same_spin_queue, mpi.world);
 
   // Opposite spin.
   std::unordered_set<Int3, boost::hash<Int3>> opposite_spin_processed;
