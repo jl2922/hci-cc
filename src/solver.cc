@@ -19,6 +19,7 @@
 #include "big_unordered_map.h"
 #include "constants.h"
 #include "det.h"
+#include "status.h"
 #include "types.h"
 #include "wavefunction.h"
 
@@ -31,18 +32,19 @@ Solver::Solver() {
 
 // Main solve procedure.
 void Solver::solve() {
+  if (mpi.id == 0) printf("%s Begin solving.\n", Status::time());
   std::ifstream config_file("CONFIG");
   if (!config_file) {
-    if (mpi.id == 0) std::cout << "CONFIG file not found." << std::endl;
+    if (mpi.id == 0) printf("CONFIG file not found.\n");
     return;
   }
   read_config(config_file);
   setup();
+  if (mpi.id == 0) printf("%s HCI queue generated.\n", Status::time());
   load_wavefunction(wave_filename);
   pt_det(eps_pt);
-  if (mpi.id == 0) {
-    printf("Correlation energy: %.10f\n", var_energy + pt_energy - hf_energy);
-  }
+  const double cor_energy = var_energy + pt_energy - hf_energy;
+  if (mpi.id == 0) printf("Correlation energy: %.10f\n", cor_energy);
 }
 
 void Solver::load_wavefunction(const std::string& filename) {
@@ -54,9 +56,7 @@ void Solver::load_wavefunction(const std::string& filename) {
   // Read header line.
   std::ifstream wave_file(filename.c_str());
   if (!wave_file) {
-    if (mpi.id == 0) {
-      std::cout << "Wave file (" << filename << ") not found." << std::endl;
-    }
+    if (mpi.id == 0) printf("Wave file %s not found.\n", filename.c_str());
     exit(0);
   }
   wave_file >> n_in >> hf_energy >> var_energy;
@@ -77,8 +77,7 @@ void Solver::load_wavefunction(const std::string& filename) {
 
   mpi.world.barrier();
   if (mpi.id == 0) {
-    printf("Loaded wavefunction w/ %d dets.\n", wf.size());
-    fflush(stdout);
+    printf("%s Loaded var dets (%d)\n", Status::time(), wf.size());
   }
 }
 
@@ -86,7 +85,9 @@ void Solver::load_wavefunction(const std::string& filename) {
 void Solver::pt_det(const double eps_pt) {
   mpi.world.barrier();
   auto begin = std::chrono::high_resolution_clock::now();
-  if (mpi.id == 0) printf("Performing PT with %d procs.\n", mpi.n);
+  if (mpi.id == 0) {
+    printf("%s Start PT w/ %d procs.\n", Status::time(), mpi.n);
+  }
 
   // Save variational dets into hash set.
   std::unordered_set<Det, boost::hash<Det>> var_dets_set;
@@ -97,6 +98,7 @@ void Solver::pt_det(const double eps_pt) {
   var_dets_set.rehash(var_dets_set.size() * 10);
 
   // Determine number of hash buckets.
+  // if (mpi.id == 0) Status::print("Estimating number of PT dets.");
   const int n = wf.size();
   int hash_buckets_local = 0, hash_buckets = 0;
   const auto& var_coefs = wf.get_coefs();
@@ -124,8 +126,7 @@ void Solver::pt_det(const double eps_pt) {
       pt_sums(mpi.world, skeleton, 200);
   pt_sums.reserve(hash_buckets);
   if (mpi.id == 0) {
-    printf("Reserve hash map with %d buckets.\n", hash_buckets);
-    fflush(stdout);
+    printf("%s Reserve %d hash buckets.\n", Status::time(), hash_buckets);
   }
   it_det = var_dets.begin();
   it_coef = var_coefs.begin();
@@ -157,23 +158,19 @@ void Solver::pt_det(const double eps_pt) {
     }
     if ((i + 1) * 100 >= local_n * progress && mpi.id == 0) {
       const auto& local_map = pt_sums.get_local_map();
-      printf(
-          "MASTER: Progress: %d%% (%d/%d), PT dets: %lu, hash load: %.2f\n",
-          progress,
-          i,
-          local_n,
-          local_map.size(),
-          local_map.load_factor());
-      fflush(stdout);
+      const std::size_t local_size = local_map.size();
+      const double load_factor = local_map.load_factor();
+      printf("%s ", Status::time());
+      printf("MASTER: Progress: %d%% (%d/%d) ", progress, i, local_n);
+      printf("Local PT dets: %lu, hash load: %.2f\n", local_size, load_factor);
       progress += 10;
     }
   }
   pt_sums.complete_async_incs();
 
-  std::size_t n_pt_dets = pt_sums.size();
+  unsigned long long n_pt_dets = pt_sums.size();
   if (mpi.id == 0) {
-    printf("Number of PT dets: %lu\n", n_pt_dets);
-    fflush(stdout);
+    printf("%s Accumalation done, size: %llu\n", Status::time(), n_pt_dets);
   }
 
   // Accumulate contribution from each det_a to the pt_energy.
@@ -187,11 +184,13 @@ void Solver::pt_det(const double eps_pt) {
     pt_energy_local += pow(sum_a, 2) / (var_energy - H_aa);
   }
   reduce(mpi.world, pt_energy_local, pt_energy, std::plus<double>(), 0);
-  if (mpi.id == 0) printf("PT energy correction: %.10f\n", pt_energy);
-  auto end = std::chrono::high_resolution_clock::now();
+
   if (mpi.id == 0) {
-    std::chrono::duration<double> pt_time = end - begin;
-    std::cout << "PT Time: " << pt_time.count() << " s" << std::endl;
+    using namespace std::chrono;
+    printf("%s Sum done. PT correction: %.10f\n", Status::time(), pt_energy);
+    auto end = high_resolution_clock::now();
+    auto pt_time = duration_cast<duration<double>>(end - begin).count();
+    printf("%s Total PT time: %.3f\n", Status::time(), pt_time);
   }
 }
 }

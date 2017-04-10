@@ -20,7 +20,7 @@
 #include "solver.h"
 #include "types.h"
 #include "wavefunction.h"
-
+#include "status.h"
 namespace hci {
 
 void HEGSolver::read_config(std::ifstream& config_file) {
@@ -175,7 +175,10 @@ void HEGSolver::setup() {
 
   generate_k_vectors();
   n_orbs = heg.k_vectors.size();
-  if (mpi.id == 0) printf("Number of spin orbitals: %d\n", n_orbs * 2);
+  if (mpi.id == 0) {
+    printf("%s K vectors generated. ", Status::time());
+    printf("Number of spin orbitals: %d\n", n_orbs * 2);
+  }
 
   generate_orb_lut();
   generate_hci_queue();
