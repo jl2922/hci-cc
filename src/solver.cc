@@ -84,11 +84,9 @@ void Solver::load_wavefunction(const std::string& filename) {
 
 // Deterministic 2nd-order purterbation.
 void Solver::pt_det(const double eps_pt) {
-  if (mpi.id == 0) {
-    printf("Performing PT with %d procs.\n", mpi.n);
-    fflush(stdout);
-  }
+  mpi.world.barrier();
   auto begin = std::chrono::high_resolution_clock::now();
+  if (mpi.id == 0) printf("Performing PT with %d procs.\n", mpi.n);
 
   // Save variational dets into hash set.
   std::unordered_set<Det, boost::hash<Det>> var_dets_set;
