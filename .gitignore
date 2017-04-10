@@ -7,6 +7,7 @@ Makefile.config
 hci
 massif.*
 CONFIG
+OUT
 *.log
 *.txt
 

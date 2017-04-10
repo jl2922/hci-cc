@@ -321,11 +321,14 @@ void HEGSolver::generate_hci_queue() {
   max_abs_H = 0.0;
 
   // Same spin.
+  const int n_diffs = 4 * heg.n_max + 1;
+  const int n_k_diffs = pow(n_diffs, 3);
   std::unordered_set<Int3Pair, boost::hash<Int3Pair>> same_spin_processed;
+  same_spin_processed.reserve(pow(n_k_diffs, 2));
+  heg.same_spin_queue.reserve(n_k_diffs);
   for (int p = 0; p < n_orbs; p++) {
     for (int q = p + 1; q < n_orbs; q++) {
       const auto& diff_pq = k_vectors[q] - k_vectors[p];
-      bool has_new = false;
       for (int r = 0; r < n_orbs; r++) {
         const int s = find_orb_id(k_vectors[p] + k_vectors[q] - k_vectors[r]);
         if (s < r) continue;
@@ -336,26 +339,28 @@ void HEGSolver::generate_hci_queue() {
         const double H_abs = get_abs_hamiltonian_by_pqrs(p, q, r, s);
         if (H_abs < Constants::EPSILON) continue;
         const auto& item = Int3Double(diff_pr, H_abs);
+        heg.same_spin_queue[diff_pq].reserve(n_k_diffs);
         heg.same_spin_queue[diff_pq].push_back(item);
-        has_new = true;
-      }
-      if (has_new) {
-        auto& items = heg.same_spin_queue[diff_pq];
-        std::sort(
-            items.begin(),
-            items.end(),
-            [](const Int3Double& a, const Int3Double& b) -> bool {
-              return a.second > b.second;
-            });
-        max_abs_H = std::max(max_abs_H, items.front().second);
-        const int n_items = static_cast<int>(items.size());
-        max_n_rs_pairs = std::max(max_n_rs_pairs, n_items);
       }
     }
+  }
+  for (auto& kv: heg.same_spin_queue) {
+    auto& items = kv.second;
+    std::sort(
+        items.begin(),
+        items.end(),
+        [](const Int3Double& a, const Int3Double& b) -> bool {
+          return a.second > b.second;
+        });
+    max_abs_H = std::max(max_abs_H, items.front().second);
+    const int n_items = static_cast<int>(items.size());
+    max_n_rs_pairs = std::max(max_n_rs_pairs, n_items);
   }
 
   // Opposite spin.
   std::unordered_set<Int3, boost::hash<Int3>> opposite_spin_processed;
+  opposite_spin_processed.reserve(n_k_diffs);
+  heg.opposite_spin_queue.reserve(n_k_diffs);
   for (int p = 0; p < n_orbs; p++) {
     for (int q = p; q < n_orbs; q++) {
       for (int r = 0; r < n_orbs; r++) {
