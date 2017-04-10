@@ -242,10 +242,6 @@ void BigUnorderedMap<K, V, H>::reset_cnts() {
 
 template <class K, class V, class H>
 void BigUnorderedMap<K, V, H>::all_combine(
-    std::unordered_map<K, V, H>& local_map, boost::mpi::communicator& world) {
-  const int proc_id = world.rank();
-  const int n = world.size();
-  world.barrier();
-}
+    std::unordered_map<K, V, H>& local_map, boost::mpi::communicator& world) {}
 
 #endif  // BIG_UNORDERED_MAP_H_

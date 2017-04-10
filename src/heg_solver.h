@@ -45,6 +45,8 @@ class HEGSolver : public Solver {
       const SpinDet&, const int n_elecs, const std::vector<int>&) const;
   void generate_k_vectors();
   void generate_hci_queue();
+  void generate_same_spin_hci_queue();
+  void generate_opposite_spin_hci_queue();
   void generate_orb_lut();
   double get_abs_hamiltonian_by_pqrs(
       const int, const int, const int, const int) const;

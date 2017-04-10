@@ -57,6 +57,22 @@ T sum(const std::array<T, N> &arr) {
 }
 
 template <class T, std::size_t N>
+double norm(const std::array<T, N> &arr) {
+  double res = arr[0] * arr[0];
+  for (std::size_t i = 1; i < N; i++) res += arr[i] * arr[i];
+  return sqrt(res);
+}
+
+template <class T, std::size_t N>
+std::array<int, N> round(const std::array<T, N> &arr) {
+  std::array<int, N> res;
+  for (std::size_t i = 0; i < N; i++) {
+    res[i] = static_cast<int>(ceil(arr[i] - 0.5));
+  }
+  return res;
+}
+
+template <class T, std::size_t N>
 bool operator==(const std::array<T, N> &lhs, const T &rhs) {
   for (std::size_t i = 0; i < N; i++) {
     if (lhs[i] != rhs) return false;

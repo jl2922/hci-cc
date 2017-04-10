@@ -40,7 +40,6 @@ void Solver::solve() {
   }
   read_config(config_file);
   setup();
-  if (mpi.id == 0) printf("%s HCI queue generated.\n", Status::time());
   load_wavefunction(wave_filename);
   pt_det(eps_pt);
   const double cor_energy = var_energy + pt_energy - hf_energy;

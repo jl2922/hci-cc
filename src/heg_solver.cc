@@ -108,8 +108,8 @@ double HEGSolver::get_hamiltonian_elem(
     if (n_eor_up + n_eor_dn != 4) return 0.0;
     const auto& eor_up_set_bits = det_eor.up.get_elec_orbs(n_eor_up);
     const auto& eor_dn_set_bits = det_eor.dn.get_elec_orbs(n_eor_dn);
-    bool k_p_set = false, k_q_set = false;
-    int orb_p = 0, orb_q = 0, orb_s = 0;
+    bool k_p_set = false, k_r_set = false;
+    int orb_p = 0, orb_r = 0, orb_s = 0;
 
     // Obtain p, q, s.
     Int3 k_change;
@@ -123,9 +123,9 @@ double HEGSolver::get_hamiltonian_elem(
         }
       } else {
         k_change += k_vectors[orb_i];
-        if (!k_q_set) {
-          orb_q = orb_i;
-          k_q_set = true;
+        if (!k_r_set) {
+          orb_r = orb_i;
+          k_r_set = true;
         } else {
           orb_s = orb_i;
         }
@@ -140,9 +140,9 @@ double HEGSolver::get_hamiltonian_elem(
         }
       } else {
         k_change += k_vectors[orb_i];
-        if (!k_q_set) {
-          orb_q = orb_i;
-          k_q_set = true;
+        if (!k_r_set) {
+          orb_r = orb_i;
+          k_r_set = true;
         } else {
           orb_s = orb_i;
         }
@@ -152,7 +152,7 @@ double HEGSolver::get_hamiltonian_elem(
     // Check for momentum conservation.
     if (k_change != 0) return 0.0;
 
-    H = one_over_pi_l / sum(square(k_vectors[orb_p] - k_vectors[orb_q]));
+    H = one_over_pi_l / sum(square(k_vectors[orb_p] - k_vectors[orb_r]));
     if (n_eor_up != 2) {
       H -= one_over_pi_l / sum(square(k_vectors[orb_p] - k_vectors[orb_s]));
     }
@@ -320,29 +320,81 @@ void HEGSolver::generate_orb_lut() {
 
 // Generate core HCI queue for fast connected determinants finding.
 void HEGSolver::generate_hci_queue() {
-  auto& k_vectors = heg.k_vectors;
   max_n_rs_pairs = 0;
   max_abs_H = 0.0;
 
-  // Same spin.
-  std::unordered_set<Int3Pair, boost::hash<Int3Pair>> same_spin_processed;
+  generate_same_spin_hci_queue();
+  generate_opposite_spin_hci_queue();
+}
+
+void HEGSolver::generate_same_spin_hci_queue() {
+  auto& k_vectors = heg.k_vectors;
+
+  // Generate k_diffs.
+  std::unordered_set<Int3, boost::hash<Int3>> k_diffs_set;
+  std::vector<Int3> k_diffs;
   for (int p = 0; p < n_orbs; p++) {
-    for (int q = p + 1; q < n_orbs; q++) {
+    for (int q = 0; q < n_orbs; q++) {
+      if (p == q) continue;
       const auto& diff_pq = k_vectors[q] - k_vectors[p];
-      for (int r = 0; r < n_orbs; r++) {
+      if (k_diffs_set.count(diff_pq) == 1) continue;
+      k_diffs.push_back(diff_pq);
+      k_diffs_set.insert(diff_pq);
+    }
+  }
+  k_diffs_set.clear();
+
+  // Generate neighbor_diffs;
+  std::vector<std::array<double, 3>> neighbor_diffs;
+  for (double i = -2; i <= 2; i++) {
+    for (double j = -2; j <= 2; j++) {
+      for (double k = -2; k <= 2; k++) {
+        neighbor_diffs.push_back({i, j, k});
+      }
+    }
+  }
+  std::stable_sort(
+      neighbor_diffs.begin(),
+      neighbor_diffs.end(),
+      [](const std::array<double, 3>& a,
+         const std::array<double, 3>& b) -> bool { return norm(a) < norm(b); });
+
+  // Process each diff pair.
+  int progress = 20;
+  int cnt = 0;
+  const int total = k_diffs.size();
+  for (const auto& diff_pq : k_diffs) {
+    for (const auto& diff_pr : k_diffs) {
+      const auto& diff_sr =
+          diff_pr + diff_pr - diff_pq;  // Momentum conservation.
+      if (norm(diff_sr) > heg.r_cutoff * 2 + Constants::EPSILON) continue;
+      const auto& p_point_theoretical = diff_pq * (-0.5);
+      for (const auto& neighbor_diff : neighbor_diffs) {
+        const auto& p_point_guess = round(p_point_theoretical + neighbor_diff);
+        const int p = find_orb_id(p_point_guess);
+        if (p == -1) continue;
+        const int q = find_orb_id(k_vectors[p] + diff_pq);
+        if (q < p) continue;
+        const int r = find_orb_id(k_vectors[p] + diff_pr);
+        if (r == -1) continue;
         const int s = find_orb_id(k_vectors[p] + k_vectors[q] - k_vectors[r]);
         if (s < r) continue;
-        const auto& diff_pr = k_vectors[r] - k_vectors[p];
-        const auto& diff = Int3Pair(diff_pq, diff_pr);
-        if (same_spin_processed.count(diff) == 1) continue;
-        same_spin_processed.insert(diff);
         const double H_abs = get_abs_hamiltonian_by_pqrs(p, q, r, s);
         if (H_abs < Constants::EPSILON) continue;
         const auto& item = Int3Double(diff_pr, H_abs);
         heg.same_spin_queue[diff_pq].push_back(item);
+        break;
       }
     }
+    cnt++;
+    if (cnt >= progress * total / 100 && mpi.id == 0) {
+      printf("%s HCI same spin queue generation progress: ", Status::time());
+      printf("%d %% (%d / %lu)\n", progress, cnt, k_diffs.size());
+      progress += 20;
+    }
   }
+
+  // Sort.
   for (auto& kv : heg.same_spin_queue) {
     auto& items = kv.second;
     std::sort(
@@ -355,27 +407,30 @@ void HEGSolver::generate_hci_queue() {
     const int n_items = static_cast<int>(items.size());
     max_n_rs_pairs = std::max(max_n_rs_pairs, n_items);
   }
-  BigUnorderedMap<Int3, std::vector<Int3Double>, boost::hash<Int3>>::
-      all_combine(heg.same_spin_queue, mpi.world);
+}
 
-  // Opposite spin.
+void HEGSolver::generate_opposite_spin_hci_queue() {
+  auto& k_vectors = heg.k_vectors;
   std::unordered_set<Int3, boost::hash<Int3>> opposite_spin_processed;
   for (int p = 0; p < n_orbs; p++) {
-    for (int q = p; q < n_orbs; q++) {
-      for (int r = 0; r < n_orbs; r++) {
+    for (int r = 0; r < n_orbs; r++) {
+      const auto& diff_pr = k_vectors[r] - k_vectors[p];
+      if (opposite_spin_processed.count(diff_pr) == 1) continue;
+      opposite_spin_processed.insert(diff_pr);
+      for (int q = p; q < n_orbs; q++) {
         const int s = find_orb_id(k_vectors[p] + k_vectors[q] - k_vectors[r]);
         if (s < 0) continue;
-        const auto& diff_pr = k_vectors[r] - k_vectors[p];
-        if (opposite_spin_processed.count(diff_pr) == 1) continue;
-        opposite_spin_processed.insert(diff_pr);
         const double H_abs =
             get_abs_hamiltonian_by_pqrs(p, q + n_orbs, r, s + n_orbs);
         if (H_abs < Constants::EPSILON) continue;
         const auto& item = Int3Double(diff_pr, H_abs);
         heg.opposite_spin_queue.push_back(item);
+        break;
       }
     }
   }
+
+  // Sort.
   auto& items = heg.opposite_spin_queue;
   std::sort(
       items.begin(),
@@ -386,5 +441,7 @@ void HEGSolver::generate_hci_queue() {
   max_abs_H = std::max(max_abs_H, items.front().second);
   const int n_items = static_cast<int>(items.size());
   max_n_rs_pairs = std::max(max_n_rs_pairs, n_items);
+  
+  if (mpi.id == 0) printf("%s HCI opposite queue generated.\n", Status::time());
 }
 }
