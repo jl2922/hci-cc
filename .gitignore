@@ -10,6 +10,7 @@ CONFIG
 OUT
 *.log
 *.txt
+submit.sh
 
 # Compiled Object files
 *.slo
