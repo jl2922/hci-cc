@@ -32,6 +32,10 @@ Solver::Solver() {
 
 // Main solve procedure.
 void Solver::solve() {
+  std::string proc_name = boost::mpi::environment::processor_name();
+  printf("Proc %d running on %s\n", mpi.id, proc_name.c_str());
+  mpi.world.barrier();
+  
   if (mpi.id == 0) printf("%s Begin solving.\n", Status::time());
   std::ifstream config_file("CONFIG");
   if (!config_file) {
