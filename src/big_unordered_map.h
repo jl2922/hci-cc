@@ -259,8 +259,10 @@ void BigUnorderedMap<K, V, H>::set_node_buckets() {
   local_node_buckets = 0;
   while (nodes_file >> proc_name_in) {
     nodes_file >> proc_mem_in;
-    if (proc_name_in == local_proc_name) local_node_buckets = proc_mem_in;
-    break;
+    if (proc_name_in == local_proc_name) {
+      local_node_buckets = proc_mem_in;
+      break;
+    }
   }
   std::list<boost::mpi::request> reqs;
   for (int i = 0; i < n_procs; i++) {
