@@ -8,6 +8,7 @@ hci
 massif.*
 CONFIG
 OUT
+NODES
 *.log
 *.txt
 submit.sh
