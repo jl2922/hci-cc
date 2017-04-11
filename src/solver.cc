@@ -7,6 +7,7 @@
 #include <boost/mpi/environment.hpp>
 #include <boost/serialization/utility.hpp>
 #include <chrono>
+#include <clocale>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
@@ -28,6 +29,7 @@ namespace hci {
 Solver::Solver() {
   mpi.id = mpi.world.rank();
   mpi.n = mpi.world.size();
+  setlocale(LC_NUMERIC, "");
 }
 
 // Main solve procedure.
@@ -35,7 +37,7 @@ void Solver::solve() {
   std::string proc_name = boost::mpi::environment::processor_name();
   printf("Proc %d running on %s\n", mpi.id, proc_name.c_str());
   mpi.world.barrier();
-  
+
   if (mpi.id == 0) printf("%s Begin solving.\n", Status::time());
   std::ifstream config_file("CONFIG");
   if (!config_file) {
@@ -80,7 +82,7 @@ void Solver::load_wavefunction(const std::string& filename) {
 
   mpi.world.barrier();
   if (mpi.id == 0) {
-    printf("%s Loaded var dets (%d)\n", Status::time(), wf.size());
+    printf("%s Loaded var dets (%'d)\n", Status::time(), wf.size());
   }
 }
 
@@ -103,7 +105,7 @@ void Solver::pt_det(const double eps_pt) {
   // Determine number of hash buckets.
   // if (mpi.id == 0) Status::print("Estimating number of PT dets.");
   const int n = wf.size();
-  int hash_buckets_local = 0, hash_buckets = 0;
+  unsigned long long hash_buckets_local = 0, hash_buckets = 0;
   const auto& var_coefs = wf.get_coefs();
   auto it_det = var_dets.begin();
   auto it_coef = var_coefs.begin();
@@ -116,8 +118,14 @@ void Solver::pt_det(const double eps_pt) {
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
     hash_buckets_local += connected_dets.size();
   }
-  hash_buckets_local *= 2 * sample_interval;
-  all_reduce(mpi.world, hash_buckets_local, hash_buckets, std::plus<int>());
+  hash_buckets_local *= sample_interval;
+  all_reduce(
+      mpi.world,
+      hash_buckets_local,
+      hash_buckets,
+      std::plus<unsigned long long>());
+  if (mpi.id == 0) printf("Estimated PT dets: %'llu\n", hash_buckets);
+  hash_buckets *= 2;
 
   // Accumulate pt_sum for each det_a.
   std::pair<std::pair<EncodeType, EncodeType>, double> skeleton;
@@ -128,8 +136,12 @@ void Solver::pt_det(const double eps_pt) {
       boost::hash<std::pair<EncodeType, EncodeType>>>
       pt_sums(mpi.world, skeleton, 200);
   pt_sums.reserve(hash_buckets);
+  hash_buckets = pt_sums.bucket_count();
   if (mpi.id == 0) {
-    printf("%s Reserve %d hash buckets.\n", Status::time(), hash_buckets);
+    printf(
+        "%s Reserved %'llu total hash buckets.\n",
+        Status::time(),
+        hash_buckets);
   }
   it_det = var_dets.begin();
   it_coef = var_coefs.begin();
@@ -165,7 +177,7 @@ void Solver::pt_det(const double eps_pt) {
       const double load_factor = local_map.load_factor();
       printf("%s ", Status::time());
       printf("MASTER: Progress: %d%% (%d/%d) ", progress, i, local_n);
-      printf("Local PT dets: %lu, hash load: %.2f\n", local_size, load_factor);
+      printf("Local PT dets: %'lu, hash load: %.2f\n", local_size, load_factor);
       progress += 10;
     }
   }
@@ -173,7 +185,10 @@ void Solver::pt_det(const double eps_pt) {
 
   unsigned long long n_pt_dets = pt_sums.size();
   if (mpi.id == 0) {
-    printf("%s Accumalation done, size: %llu\n", Status::time(), n_pt_dets);
+    printf(
+        "%s Accumalation done, total PT dets: %'llu\n",
+        Status::time(),
+        n_pt_dets);
   }
 
   // Accumulate contribution from each det_a to the pt_energy.

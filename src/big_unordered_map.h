@@ -79,9 +79,16 @@ BigUnorderedMap<K, V, H>::BigUnorderedMap(
 
 template <class K, class V, class H>
 void BigUnorderedMap<K, V, H>::reserve(const unsigned long long n_buckets) {
-  local_map.reserve(static_cast<std::size_t>(
-      n_buckets * local_node_buckets / total_node_buckets + 1));
-  printf("Proc %d number of hash buckets: %lu\n", proc_id, local_map.bucket_count());
+  std::size_t local_buckets = static_cast<std::size_t>(
+      n_buckets * 1.0 * local_node_buckets / total_node_buckets + 1);
+  printf(
+      "Proc %d about to reserve %'lu hash buckets.\n", proc_id, local_buckets);
+  local_map.reserve(local_buckets);
+  printf(
+      "Proc %d reserved %'lu local hash buckets.\n",
+      proc_id,
+      local_map.bucket_count());
+  world->barrier();
 }
 
 template <class K, class V, class H>
@@ -319,8 +326,9 @@ void BigUnorderedMap<K, V, H>::set_node_buckets() {
     for (const auto i : node_map) printf("%d ", i);
     printf("\n");
   }
+  world->barrier();
   printf(
-      "Node #%d (%s) stores: %.2f %% pt_dets\n",
+      "Node #%d (%s) stores: %.2f %%\n",
       proc_id,
       local_proc_name.c_str(),
       local_node_buckets * 100.0 / total_node_buckets);
