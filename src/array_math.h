@@ -67,7 +67,8 @@ template <class T, std::size_t N>
 std::array<int, N> round(const std::array<T, N> &arr) {
   std::array<int, N> res;
   for (std::size_t i = 0; i < N; i++) {
-    res[i] = static_cast<int>(ceil(arr[i] - 0.5));
+    const double rounded = ceil(arr[i] - 0.5);
+    res[i] = static_cast<int>(rounded >= 0 ? rounded + 0.5 : rounded - 0.5);
   }
   return res;
 }
