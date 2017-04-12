@@ -134,7 +134,7 @@ void Solver::pt_det(const double eps_pt) {
       std::pair<EncodeType, EncodeType>,
       double,
       boost::hash<std::pair<EncodeType, EncodeType>>>
-      pt_sums(mpi.world, skeleton, 200);
+      pt_sums(mpi.world, skeleton);
   pt_sums.reserve(hash_buckets);
   hash_buckets = pt_sums.bucket_count();
   if (mpi.id == 0) {

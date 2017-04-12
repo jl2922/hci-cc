@@ -21,7 +21,7 @@ class BigUnorderedMap {
   BigUnorderedMap(
       boost::mpi::communicator& world,
       const std::pair<K, V>& skeleton,
-      const int buf_size = 100);
+      const int total_buf_size = 2000);
   void reserve(const unsigned long long);
   unsigned long long bucket_count(const int root = 0) const;
   unsigned long long size(const int root = 0) const;
@@ -64,12 +64,12 @@ template <class K, class V, class H>
 BigUnorderedMap<K, V, H>::BigUnorderedMap(
     boost::mpi::communicator& world,
     const std::pair<K, V>& skeleton,
-    const int buf_size) {
+    const int total_buf_size) {
   this->world = &world;
-  this->buf_size = buf_size;
   proc_id = world.rank();
   n_procs = world.size();
   hasher = H();
+  buf_size = std::max(total_buf_size / n_procs, 100);
   buf_send.resize(buf_size);
   buf_send_content.resize(buf_size);
   reset_cnts();
