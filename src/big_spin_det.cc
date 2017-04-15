@@ -6,6 +6,8 @@
 namespace hci {
 
 void BigSpinDet::from_eor(const BigSpinDet& lhs, const BigSpinDet& rhs) {
+  // Find the orbitals where lhs and rhs differ from each other.
+  // Store in ascending order.
   assert(lhs.n_orbs == rhs.n_orbs);
   n_orbs = lhs.n_orbs;
   const auto& lhs_elecs = lhs.elecs;

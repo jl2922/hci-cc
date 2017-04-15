@@ -20,7 +20,7 @@
 #include "big_unordered_map.h"
 #include "constants.h"
 #include "det.h"
-#include "status.h"
+#include "timer.h"
 #include "types.h"
 #include "wavefunction.h"
 
@@ -38,7 +38,7 @@ void Solver::solve() {
   printf("Proc %d running on %s\n", mpi.id, proc_name.c_str());
   mpi.world.barrier();
 
-  if (mpi.id == 0) printf("%s Begin solving.\n", Status::time());
+  if (mpi.id == 0) printf("%s Begin solving.\n", Timer::str());
   std::ifstream config_file("CONFIG");
   if (!config_file) {
     if (mpi.id == 0) printf("CONFIG file not found.\n");
@@ -47,9 +47,15 @@ void Solver::solve() {
   read_config(config_file);
   setup();
   load_wavefunction(wave_filename);
-  pt_det(eps_pt);
+  pt(eps_pt);
   const double cor_energy = var_energy + pt_energy - hf_energy;
-  if (mpi.id == 0) printf("Correlation energy: %.10f\n", cor_energy);
+  if (mpi.id == 0) {
+    printf("\n[Summary]\n");
+    printf("HF Energy: %.10f eV\n", hf_energy);
+    printf("Variational Energy: %.10f eV\n", var_energy);
+    printf("PT Correction: %.10f eV\n", pt_energy);
+    printf("Correlation energy: %.10f eV\n", cor_energy);
+  }
 }
 
 void Solver::load_wavefunction(const std::string& filename) {
@@ -82,33 +88,15 @@ void Solver::load_wavefunction(const std::string& filename) {
 
   mpi.world.barrier();
   if (mpi.id == 0) {
-    printf("%s Loaded var dets (%'d)\n", Status::time(), wf.size());
+    printf("%s Loaded var dets (%'d)\n", Timer::str(), wf.size());
   }
 }
 
-// Deterministic 2nd-order purterbation.
-void Solver::pt_det(const double eps_pt) {
-  mpi.world.barrier();
-  auto begin = std::chrono::high_resolution_clock::now();
-  if (mpi.id == 0) {
-    printf("%s Start PT w/ %d procs.\n", Status::time(), mpi.n);
-  }
-
-  // Save variational dets into hash set.
-  std::unordered_set<Det, boost::hash<Det>> var_dets_set;
-  const auto& var_dets = wf.get_dets();
-  for (const auto& det : var_dets) {
-    var_dets_set.insert(det);
-  }
-  var_dets_set.rehash(var_dets_set.size() * 10);
-
-  // Determine number of hash buckets.
-  // if (mpi.id == 0) Status::print("Estimating number of PT dets.");
+unsigned long long Solver::estimate_n_pt_dets() {
   const int n = wf.size();
-  unsigned long long hash_buckets_local = 0, hash_buckets = 0;
-  const auto& var_coefs = wf.get_coefs();
-  auto it_det = var_dets.begin();
-  auto it_coef = var_coefs.begin();
+  unsigned long long estimation_local = 0, estimation = 0;
+  auto it_det = wf.get_dets().begin();
+  auto it_coef = wf.get_coefs().begin();
   const int sample_interval = std::max(n / 500, 100);
   for (int i = 0; i < n; i++) {
     const auto& det_i = *it_det++;
@@ -116,50 +104,66 @@ void Solver::pt_det(const double eps_pt) {
     if ((i % (sample_interval * mpi.n)) != sample_interval * mpi.id) continue;
     const auto& connected_dets =
         find_connected_dets(det_i, eps_pt / fabs(coef_i));
-    hash_buckets_local += connected_dets.size();
+    estimation_local += connected_dets.size();
   }
-  hash_buckets_local *= sample_interval;
+  estimation_local *= sample_interval;
   all_reduce(
-      mpi.world,
-      hash_buckets_local,
-      hash_buckets,
-      std::plus<unsigned long long>());
-  if (mpi.id == 0) printf("Estimated PT dets: %'llu\n", hash_buckets);
-  hash_buckets *= 2;
+      mpi.world, estimation_local, estimation, std::plus<unsigned long long>());
+  return estimation;
+}
 
-  // Accumulate pt_sum for each det_a.
+template <class T>
+std::vector<T> Solver::get_local_portion(const std::list<T>& all) {
+  std::vector<T> local;
+  auto it = all.begin();
+  local.reserve(all.size() / mpi.n + 1);
+  for (int i = 0; i < static_cast<int>(all.size()); i++) {
+    const auto& item = *it++;
+    if (i % mpi.n != mpi.id) continue;
+    local.push_back(item);
+  }
+  return local;
+}
+
+// Deterministic 2nd-order purterbation.
+void Solver::pt(const double eps_pt) {
+  mpi.world.barrier();
+  auto begin = std::chrono::high_resolution_clock::now();
+  if (mpi.id == 0) printf("%s Start PT w/ %d procs.\n", Timer::str(), mpi.n);
+
+  // Save variational dets into hash set.
+  std::unordered_set<Det, boost::hash<Det>> var_dets_set;
+  for (const auto& det : wf.get_dets()) var_dets_set.insert(det);
+  var_dets_set.rehash(var_dets_set.size() * 10);
+
+  // Determine number of hash buckets.
+  unsigned long long n_pt_dets_estimate = estimate_n_pt_dets();
+  if (mpi.id == 0) printf("Estimated PT dets: %'llu\n", n_pt_dets_estimate);
+
+  // Setup hash table.
   std::pair<std::pair<EncodeType, EncodeType>, double> skeleton;
-  skeleton.first = var_dets.front().encode();
+  skeleton.first = wf.get_dets().front().encode();
   BigUnorderedMap<
       std::pair<EncodeType, EncodeType>,
       double,
       boost::hash<std::pair<EncodeType, EncodeType>>>
       pt_sums(mpi.world, skeleton);
-  pt_sums.reserve(hash_buckets);
-  hash_buckets = pt_sums.bucket_count();
+  pt_sums.reserve(n_pt_dets_estimate * 2);
+  unsigned long long hash_buckets = pt_sums.bucket_count();
   if (mpi.id == 0) {
-    printf(
-        "%s Reserved %'llu total hash buckets.\n",
-        Status::time(),
-        hash_buckets);
+    printf("%s ", Timer::str());
+    printf("Reserved %'llu total hash buckets.\n", hash_buckets);
   }
-  it_det = var_dets.begin();
-  it_coef = var_coefs.begin();
-  std::vector<Det> var_dets_shrinked;
-  std::vector<double> var_coefs_shrinked;
-  var_dets_shrinked.reserve(n / mpi.n + 1);
-  var_coefs_shrinked.reserve(n / mpi.n + 1);
-  for (int i = 0; i < n; i++) {
-    const auto& det_i = *it_det++;
-    const double coef_i = *it_coef++;
-    if (i % mpi.n != mpi.id) continue;
-    var_dets_shrinked.push_back(det_i);
-    var_coefs_shrinked.push_back(coef_i);
-  }
+
+  // Shrink variational dets.
+  const auto& var_dets_shrinked = get_local_portion(wf.get_dets());
+  const auto& var_coefs_shrinked = get_local_portion(wf.get_coefs());
   wf.clear();
+
+  // Accumulate sums.
   int progress = 10;
-  const int local_n = static_cast<int>(var_dets_shrinked.size());
-  for (int i = 0; i < local_n; i++) {
+  std::size_t local_n = var_dets_shrinked.size();
+  for (std::size_t i = 0; i < local_n; i++) {
     const auto& det_i = var_dets_shrinked[i];
     const double coef_i = var_coefs_shrinked[i];
     const auto& connected_dets =
@@ -175,8 +179,8 @@ void Solver::pt_det(const double eps_pt) {
       const auto& local_map = pt_sums.get_local_map();
       const std::size_t local_size = local_map.size();
       const double load_factor = local_map.load_factor();
-      printf("%s ", Status::time());
-      printf("MASTER: Progress: %d%% (%d/%d) ", progress, i, local_n);
+      printf("%s ", Timer::str());
+      printf("MASTER: Progress: %d%% (%lu/%lu) ", progress, i, local_n);
       printf("Local PT dets: %'lu, hash load: %.2f\n", local_size, load_factor);
       progress += 10;
     }
@@ -184,12 +188,7 @@ void Solver::pt_det(const double eps_pt) {
   pt_sums.complete_async_incs();
 
   unsigned long long n_pt_dets = pt_sums.size();
-  if (mpi.id == 0) {
-    printf(
-        "%s Accumalation done, total PT dets: %'llu\n",
-        Status::time(),
-        n_pt_dets);
-  }
+  if (mpi.id == 0) printf("%s Total PT dets: %'llu\n", Timer::str(), n_pt_dets);
 
   // Accumulate contribution from each det_a to the pt_energy.
   pt_energy = 0.0;
@@ -205,10 +204,10 @@ void Solver::pt_det(const double eps_pt) {
 
   if (mpi.id == 0) {
     using namespace std::chrono;
-    printf("%s Sum done. PT correction: %.10f\n", Status::time(), pt_energy);
+    printf("%s PT correction: %.10f eV\n", Timer::str(), pt_energy);
     auto end = high_resolution_clock::now();
     auto pt_time = duration_cast<duration<double>>(end - begin).count();
-    printf("%s Total PT time: %.3f\n", Status::time(), pt_time);
+    printf("%s Total PT time: %.3f s\n", Timer::str(), pt_time);
   }
 }
 }

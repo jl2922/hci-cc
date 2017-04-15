@@ -29,7 +29,10 @@ class Solver {
       const int n_up = -1,
       const int n_dn = -1) const = 0;
   void load_wavefunction(const std::string &);
-  void pt_det(const double);
+  unsigned long long estimate_n_pt_dets();
+  template<class T>
+  std::vector<T> get_local_portion(const std::list<T>&);
+  void pt(const double);
   virtual void read_config(std::ifstream &) = 0;
   virtual void setup() = 0;
 

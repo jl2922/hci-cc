@@ -19,15 +19,22 @@
 #include "constants.h"
 #include "det.h"
 #include "solver.h"
-#include "status.h"
+#include "timer.h"
 #include "types.h"
 #include "wavefunction.h"
 namespace hci {
 
 void HEGSolver::read_config(std::ifstream& config_file) {
   config_file >> n_up >> n_dn >> wave_filename >> eps_var >> eps_pt;
-  config_file >> heg.r_s >> heg.r_cutoff;
   n_elecs = n_up + n_dn;
+  config_file >> heg.r_s >> heg.r_cutoff;
+  if (mpi.id == 0) {
+    printf("n_up: %d, n_dn: %d, n_elecs: %d\n", n_up, n_dn, n_elecs);
+    printf("WAVE file: %s\n", wave_filename.c_str());
+    printf("eps_var: %.6E\neps_pt: %.6E\n", eps_var, eps_pt);
+    printf("r_s: %.6f\n", heg.r_s);
+    printf("r_cutoff: %.6f\n", heg.r_cutoff);
+  }
 }
 
 double HEGSolver::get_abs_hamiltonian_by_pqrs(
@@ -177,7 +184,7 @@ void HEGSolver::setup() {
   generate_k_vectors();
   n_orbs = heg.k_vectors.size();
   if (mpi.id == 0) {
-    printf("%s K vectors generated. ", Status::time());
+    printf("%s K vectors generated. ", Timer::str());
     printf("Number of spin orbitals: %d\n", n_orbs * 2);
   }
 
@@ -388,7 +395,7 @@ void HEGSolver::generate_same_spin_hci_queue() {
     }
     cnt++;
     if (cnt >= progress * total / 100 && mpi.id == 0) {
-      printf("%s HCI same spin queue generation progress: ", Status::time());
+      printf("%s HCI same spin queue generation progress: ", Timer::str());
       printf("%d %% (%d / %lu)\n", progress, cnt, k_diffs.size());
       progress += 20;
     }
@@ -441,7 +448,7 @@ void HEGSolver::generate_opposite_spin_hci_queue() {
   max_abs_H = std::max(max_abs_H, items.front().second);
   const int n_items = static_cast<int>(items.size());
   max_n_rs_pairs = std::max(max_n_rs_pairs, n_items);
-  
-  if (mpi.id == 0) printf("%s HCI opposite queue generated.\n", Status::time());
+
+  if (mpi.id == 0) printf("%s HCI opposite queue generated.\n", Timer::str());
 }
 }
