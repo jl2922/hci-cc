@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <functional>
 #include <vector>
+#include <iostream>
 
 // Translated from Adam's fortran code.
 class Davidson {
@@ -62,7 +63,7 @@ void Davidson::diagonalize() {
 
   Eigen::MatrixXd v = Eigen::MatrixXd::Zero(n, iterations);
 
-  if (initial_vector.size() != n) {
+  if (static_cast<int>(initial_vector.size()) != n) {
     v(0, 0) = 1.0;  // Start from HF.
   } else {
     for (int i = 0; i < n; i++) v(i, 0) = initial_vector[i];
@@ -126,13 +127,21 @@ void Davidson::diagonalize() {
       h_krylov(i, it) = v.col(i).dot(Hv.col(it));
       h_krylov(it, i) = h_krylov(i, it);
     }
+    std::cout << h_krylov.leftCols(it).topRows(it) << std::endl;
     len_work = 3 * it + 2;
-    h_overwrite = h_krylov;
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigenSolver(h_overwrite);
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigenSolver(h_krylov);
     const auto& eigenvalues = eigenSolver.eigenvalues();
-    lowest_eigenvalue = eigenvalues.minCoeff();
-    w = v.leftCols(it) * h_overwrite.col(0).topRows(it);
-    Hw = Hv.leftCols(it) * h_overwrite.col(0).topRows(it);
+    const auto& eigenvectors = eigenSolver.eigenvectors();
+    lowest_eigenvalue = eigenvalues[0];
+    int lowest_id = 0;
+    for (int i = 1; i <= it; i++) {
+      if (eigenvalues[i] < lowest_eigenvalue) {
+        lowest_eigenvalue = eigenvalues[i];
+        lowest_id = i;
+      }
+    }
+    w = v.leftCols(it) * eigenvectors.col(lowest_id).topRows(it);
+    Hw = Hv.leftCols(it) * eigenvectors.col(lowest_id).topRows(it);
 
     if (it > 1 && fabs(lowest_eigenvalue - lowest_eigenvalue_prev) < 1.0e-6) {
       converged = true;

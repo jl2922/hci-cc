@@ -36,7 +36,7 @@ class TestHamiltonian {
 };
 
 int main(int argc, char** argv) {
-  int N = 10000;
+  int N = 1000;
   TestHamiltonian hamiltonian(N, 10);
 
   std::function<double(int, int)> get_hamiltonian = std::bind(
