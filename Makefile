@@ -7,7 +7,7 @@ CC := mpic++
 CFLAGS := -std=c++11 -g -Wall -O3 -DBIG_SPIN_DET
 SRC_DIR := src
 OBJ_DIR := build
-SRCS := $(shell find $(SRC_DIR) ! -name "main.cc" -name "*.cc")
+SRCS := $(shell find $(SRC_DIR) ! -name "main.cc" ! -name "*test.cc" -name "*.cc")
 HEADERS := $(shell find $(SRC_DIR) -name "*.h")
 OBJS := $(SRCS:$(SRC_DIR)/%.cc=$(OBJ_DIR)/%.o)
 MAIN := src/main.cc
